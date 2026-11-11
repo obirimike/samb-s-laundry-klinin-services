@@ -2,9 +2,9 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const RECRUITMENT_BUCKET = "recruitment-documents";
+export const RECRUITMENT_BUCKET = "SamB bucket";
 export const MAX_CV_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export const ALLOWED_CV_MIME_TYPES = new Set([
@@ -78,6 +78,7 @@ export async function ensureRecruitmentBucketExists(): Promise<void> {
   if (bucketChecked) return;
 
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: buckets } = await supabaseAdmin.storage.listBuckets();
     const exists = buckets?.some((b) => b.name === RECRUITMENT_BUCKET);
 
@@ -145,6 +146,8 @@ export async function uploadCvDocument(
   const uniqueKey = randomUUID();
   const storagePath = `applications/${yearMonth}/${uniqueKey}${ext}`;
   const cleanFileName = sanitizeFileName(originalName);
+  const supabaseAdmin = getSupabaseAdmin();
+ 
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from(RECRUITMENT_BUCKET)
@@ -171,7 +174,7 @@ export async function uploadCvDocument(
  */
 export async function deleteCvDocument(storagePath: string): Promise<void> {
   if (!storagePath) return;
-
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     await supabaseAdmin.storage
       .from(RECRUITMENT_BUCKET)
@@ -192,7 +195,7 @@ export async function createCvSignedUrl(
   if (!storagePath) {
     throw new Error("Invalid storage path.");
   }
-
+  const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin.storage
     .from(RECRUITMENT_BUCKET)
     .createSignedUrl(storagePath, expiresInSeconds);
