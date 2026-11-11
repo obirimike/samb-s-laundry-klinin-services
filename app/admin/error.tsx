@@ -26,11 +26,11 @@ export default function AdminError({
           label: "Admin Dashboard",
           href: "/admin",
         }}
-        secondaryAction={{
-          label: "Return Home",
-          href: "/",
-        }}
-        showSupport={false}
+        // secondaryAction={{
+        //   label: "Return Home",
+        //   href: "/",
+        // }}
+        // showSupport={false}
       />
     </>
   );
