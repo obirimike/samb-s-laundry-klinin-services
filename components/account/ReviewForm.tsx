@@ -113,7 +113,7 @@ export default function ReviewForm({
           value={comment}
           onChange={(event) => setComment(event.target.value)}
           placeholder="Tell us about your experience with SAMB..."
-          className="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
 
         <p className="mt-1 text-right text-xs text-slate-500">
