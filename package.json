@@ -7,11 +7,11 @@
     "build": "prisma contract emit && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:generate": "prisma contract emit",
+    "db:generate": "prisma7 generate --config ./prisma7.config.ts && prisma contract emit",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "test:e2e": "playwright test",
-    "postinstall": "prisma contract emit"
+    "postinstall": "prisma7 generate --config ./prisma7.config.ts && prisma contract emit"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
