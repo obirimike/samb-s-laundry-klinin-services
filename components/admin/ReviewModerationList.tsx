@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
 type FilterStatus = "ALL" | ReviewStatus;
@@ -70,10 +73,20 @@ export default function ReviewModerationList({
       ) as Record<string, string>
   );
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Modals state
+  const [deleteTarget, setDeleteTarget] = useState<AdminReview | null>(null);
   const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
+    isOpen: boolean;
+    variant: "success" | "error";
+    title: string;
     message: string;
-  } | null>(null);
+  }>({
+    isOpen: false,
+    variant: "success",
+    title: "",
+    message: "",
+  });
 
   const visibleReviews = useMemo(
     () =>
@@ -98,7 +111,6 @@ export default function ReviewModerationList({
     status: "PUBLISHED" | "HIDDEN"
   ) {
     setBusyId(reviewId);
-    setFeedback(null);
 
     try {
       const response = await fetch("/api/admin/reviews", {
@@ -117,7 +129,7 @@ export default function ReviewModerationList({
 
       if (!response.ok) {
         throw new Error(
-          payload?.error ?? "Unable to update this review."
+          payload?.message || payload?.error || "Unable to update this review."
         );
       }
 
@@ -135,19 +147,64 @@ export default function ReviewModerationList({
       );
 
       setFeedback({
-        type: "success",
+        isOpen: true,
+        variant: "success",
+        title: status === "PUBLISHED" ? "Review Published" : "Review Hidden",
         message:
           status === "PUBLISHED"
-            ? "Review published successfully."
-            : "Review hidden successfully.",
+            ? "Review is now published and visible to the public."
+            : "Review has been hidden from public service pages.",
       });
     } catch (error) {
       setFeedback({
-        type: "error",
+        isOpen: true,
+        variant: "error",
+        title: "Moderation Failed",
         message:
           error instanceof Error
             ? error.message
             : "Something went wrong. Please try again.",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function executeDelete() {
+    if (!deleteTarget) return;
+    const reviewId = deleteTarget.id;
+    setBusyId(reviewId);
+
+    try {
+      const response = await fetch("/api/admin/reviews", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Unable to delete review.");
+      }
+
+      setReviews((current) => current.filter((r) => r.id !== reviewId));
+      setDeleteTarget(null);
+
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: "Review Removed",
+        message: "The inappropriate review was permanently removed.",
+      });
+    } catch (error) {
+      setDeleteTarget(null);
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Delete Failed",
+        message:
+          error instanceof Error ? error.message : "Failed to delete review.",
       });
     } finally {
       setBusyId(null);
@@ -162,77 +219,52 @@ export default function ReviewModerationList({
             key={item}
             type="button"
             onClick={() => setFilter(item)}
-            className={`rounded-xl border p-4 text-left transition cursor-pointer ${
+            className={`rounded-xl border p-4 text-left transition ${
               filter === item
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                : "border-slate-200 bg-white hover:bg-slate-50"
             }`}
           >
-            <span className="block text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               {item === "ALL" ? "All reviews" : statusLabel(item)}
-            </span>
-            <span className="mt-1 block text-2xl font-semibold">
+            </p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
               {counts[item]}
-            </span>
+            </p>
           </button>
         ))}
       </div>
 
-      {feedback && (
-        <div
-          role="status"
-          className={`rounded-lg border px-4 py-3 text-sm ${
-            feedback.type === "success"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-200 bg-red-50 text-red-800"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
-
       {visibleReviews.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <h2 className="font-semibold text-slate-900">
-            No {filter === "ALL" ? "" : filter.toLowerCase() + " "}reviews
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Reviews matching this filter will appear here.
-          </p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+          No reviews in this view.
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {visibleReviews.map((review) => {
             const isBusy = busyId === review.id;
 
             return (
               <article
                 key={review.id}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
+                    <h3 className="font-semibold text-slate-900">
+                      {review.customer.name}
+                    </h3>
                     <p className="text-sm text-slate-500">
-                      Booking {review.booking.bookingNumber}
-                    </p>
-
-                    <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                      {review.service.name}
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-600">
-                      Customer: {review.customer.name} (
-                      {review.customer.email})
+                      {review.customer.email} · {review.service.name} (Booking {review.booking.bookingNumber})
                     </p>
                   </div>
-
                   <span
-                    className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
-                      review.status === "PENDING"
-                        ? "bg-amber-100 text-amber-800"
-                        : review.status === "PUBLISHED"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-slate-100 text-slate-700"
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                      review.status === "PUBLISHED"
+                        ? "bg-green-100 text-green-800"
+                        : review.status === "HIDDEN"
+                          ? "bg-rose-100 text-rose-800"
+                          : "bg-amber-100 text-amber-800"
                     }`}
                   >
                     {statusLabel(review.status)}
@@ -291,23 +323,13 @@ export default function ReviewModerationList({
                       }))
                     }
                     maxLength={2000}
-                    rows={3}
+                    rows={2}
                     placeholder="Optional note explaining the moderation decision"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                   />
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    This note is for admin use and is not displayed as the customer&apos;s public review.
-                  </p>
                 </div>
 
-                {review.moderatedAt && (
-                  <p className="mt-3 text-xs text-slate-500">
-                    Last moderated: {formatDateTime(review.moderatedAt)}
-                  </p>
-                )}
-
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-5 flex flex-wrap items-center gap-3">
                   {review.status !== "PUBLISHED" && (
                     <button
                       type="button"
@@ -315,7 +337,7 @@ export default function ReviewModerationList({
                       onClick={() =>
                         moderateReview(review.id, "PUBLISHED")
                       }
-                      className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-60 transition shadow-sm"
                     >
                       {isBusy ? "Saving..." : "Publish review"}
                     </button>
@@ -326,17 +348,51 @@ export default function ReviewModerationList({
                       type="button"
                       disabled={isBusy}
                       onClick={() => moderateReview(review.id, "HIDDEN")}
-                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition"
                     >
                       {isBusy ? "Saving..." : "Hide review"}
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => setDeleteTarget(review)}
+                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 transition"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </button>
                 </div>
               </article>
             );
           })}
         </div>
       )}
+
+      {/* Confirmation Modal: Delete Review */}
+      {deleteTarget && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={executeDelete}
+          title="Delete this review?"
+          description={`Permanently remove the ${deleteTarget.rating}-star review from ${deleteTarget.customer.name} for ${deleteTarget.service.name}?`}
+          consequences="This review will be permanently deleted from the database and will no longer affect service ratings."
+          confirmText="Delete Review"
+          isDestructive={true}
+          isLoading={busyId === deleteTarget.id}
+        />
+      )}
+
+      {/* Reusable Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedback.isOpen}
+        onClose={() => setFeedback((prev) => ({ ...prev, isOpen: false }))}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+      />
     </div>
   );
 }

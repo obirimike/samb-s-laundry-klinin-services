@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { suspendedAccountResponse } from "@/lib/account-access";
 import { limitRequest, rateLimitHeaders } from "@/lib/rate-limit";
 
 const bookingSchema = z
@@ -50,6 +51,9 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+
+    const suspended = await suspendedAccountResponse(session.user.id);
+    if (suspended) return suspended;
 
     const rateLimit = await limitRequest(
       request,
@@ -128,7 +132,7 @@ export async function POST(request: Request) {
     const service = await db.service.findFirst({
       where: {
         id: input.serviceId,
-        isActive: true,
+        status: "ACTIVE",
       },
       select: {
         id: true,

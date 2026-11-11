@@ -42,6 +42,7 @@ export default async function AdminCustomersPage({
       name: true,
       email: true,
       phone: true,
+      accountStatus: true,
       createdAt: true,
       _count: { select: { bookings: true } },
     },
@@ -137,16 +138,27 @@ export default async function AdminCustomersPage({
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {customers.map((customer) => (
+                {customers.map((customer: any) => (
                   <Link
                     key={customer.id}
                     href={`/admin/customers/${customer.id}`}
                     className="flex flex-col justify-between gap-4 p-5 hover:bg-slate-50 sm:flex-row sm:items-center"
                   >
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-900">
-                        {customer.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-slate-900">
+                          {customer.name}
+                        </p>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                            customer.accountStatus === "ACTIVE"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-rose-100 text-rose-800"
+                          }`}
+                        >
+                          {customer.accountStatus}
+                        </span>
+                      </div>
                       <p className="mt-1 break-all text-sm text-slate-600">
                         {customer.email}
                       </p>

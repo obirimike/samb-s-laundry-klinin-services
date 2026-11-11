@@ -2,6 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 type StaffOption = {
   id: string;
@@ -81,6 +83,24 @@ export default function AssignmentManagement({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Modal states
+  const [unassignTarget, setUnassignTarget] = useState<{
+    booking: BookingRecord;
+    assignment: Assignment;
+  } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    variant: "success" | "error";
+    title: string;
+    message: string;
+    referenceNumber?: string;
+  }>({
+    isOpen: false,
+    variant: "success",
+    title: "",
+    message: "",
+  });
+
   async function assignStaff(
     event: FormEvent<HTMLFormElement>,
     booking: BookingRecord
@@ -123,11 +143,25 @@ export default function AssignmentManagement({
       };
 
       if (!response.ok) {
-        setError(result.message || "Unable to assign staff.");
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Assignment Failed",
+          message: result.message || "Unable to assign staff.",
+        });
         return;
       }
 
-      setSuccess(result.message || "Staff assigned successfully.");
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: "Staff Assigned Successfully",
+        message:
+          result.message ||
+          `Staff member assigned to booking ${booking.bookingNumber}.`,
+        referenceNumber: booking.bookingNumber,
+      });
+
       setSelectedStaff((current) => ({
         ...current,
         [booking.id]: "",
@@ -139,23 +173,21 @@ export default function AssignmentManagement({
 
       router.refresh();
     } catch {
-      setError("A network error occurred. Please try again.");
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Error",
+        message: "A network error occurred. Please try again.",
+      });
     } finally {
       setBusyKey(null);
     }
   }
 
-  async function unassignStaff(
-    booking: BookingRecord,
-    assignment: Assignment
-  ) {
-    if (
-      !window.confirm(
-        `Unassign ${assignment.staff.name} from ${booking.bookingNumber}?`
-      )
-    ) {
-      return;
-    }
+  async function executeUnassign() {
+    if (!unassignTarget) return;
+    const { booking, assignment } = unassignTarget;
+    setUnassignTarget(null);
 
     setBusyKey(assignment.id);
     setError("");
@@ -172,17 +204,40 @@ export default function AssignmentManagement({
       };
 
       if (!response.ok) {
-        setError(result.message || "Unable to unassign staff.");
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Unassign Failed",
+          message: result.message || "Unable to unassign staff.",
+        });
         return;
       }
 
-      setSuccess(result.message || "Assignment removed.");
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: "Staff Unassigned",
+        message:
+          result.message ||
+          `${assignment.staff.name} has been unassigned from ${booking.bookingNumber}.`,
+        referenceNumber: booking.bookingNumber,
+      });
+
       router.refresh();
     } catch {
-      setError("A network error occurred. Please try again.");
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Problem",
+        message: "A network error occurred. Please try again.",
+      });
     } finally {
       setBusyKey(null);
     }
+  }
+
+  function unassignStaff(booking: BookingRecord, assignment: Assignment) {
+    setUnassignTarget({ booking, assignment });
   }
 
   return (
@@ -443,6 +498,33 @@ export default function AssignmentManagement({
           })}
         </div>
       )}
+
+      {/* Confirmation Modal: Unassign */}
+      {unassignTarget && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setUnassignTarget(null)}
+          onConfirm={executeUnassign}
+          title="Unassign staff member?"
+          description={`Unassign ${unassignTarget.assignment.staff.name} from booking ${unassignTarget.booking.bookingNumber}?`}
+          consequences="The staff member will be notified that this booking has been unassigned from their dashboard."
+          recordName={unassignTarget.booking.bookingNumber}
+          confirmText="Unassign Staff"
+          isDestructive={true}
+          isLoading={busyKey === unassignTarget.assignment.id}
+        />
+      )}
+
+      {/* Reusable Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedback.isOpen}
+        onClose={() => setFeedback((prev) => ({ ...prev, isOpen: false }))}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        referenceNumber={feedback.referenceNumber}
+        referenceLabel="Booking Reference"
+      />
     </div>
   );
 }

@@ -1,13 +1,26 @@
-import Link from "next/link";
+import ErrorView from "@/components/ui/ErrorView";
+import NavBar from "@/components/layout/NavBar";
+import Footer from "@/components/layout/Footer";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-      <h1 className="text-4xl font-bold">Page not found</h1>
-      <p className="text-lg text-slate-600">The page you requested does not exist.</p>
-      <Link href="/" className="rounded bg-slate-900 px-4 py-2 text-white">
-        Go home
-      </Link>
-    </main>
+    <>
+      <NavBar />
+      <ErrorView
+        statusCode="404"
+        title="Page Not Found"
+        message="The page you're looking for doesn't exist, may have been moved, or is no longer available."
+        primaryAction={{
+          label: "Return to homepage",
+          href: "/",
+        }}
+        secondaryAction={{
+          label: "Browse services",
+          href: "/services",
+        }}
+        showSupport={true}
+      />
+      <Footer />
+    </>
   );
 }

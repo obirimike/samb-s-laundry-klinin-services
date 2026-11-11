@@ -8,6 +8,7 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Our Services" },
   { href: "/about", label: "About Us" },
+  { href: "/careers", label: "Careers" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -24,7 +25,7 @@ export default async function NavBar() {
   const bookingLabel = isSignedIn ? "Book a Service" : "Sign In to Book";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
         <Link
           href="/"

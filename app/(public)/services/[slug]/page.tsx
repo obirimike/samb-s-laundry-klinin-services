@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: ServicePageProps) {
   const { slug } = await params;
 
   const service = await db.service.findFirst({
-    where: { slug, isActive: true },
+    where: { slug, status: "ACTIVE" },
   });
 
   if (!service) {
@@ -49,7 +49,7 @@ export default async function ServiceDetailPage({
   const service = await db.service.findFirst({
     where: {
       slug,
-      isActive: true,
+      status: "ACTIVE",
     },
   });
 

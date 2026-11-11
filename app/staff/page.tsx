@@ -63,7 +63,7 @@ export default async function StaffDashboardPage() {
 
   const activeCount = assignments.length;
   const inProgressCount = assignments.filter(
-    (assignment) => assignment.booking.status === "IN_PROGRESS"
+    (assignment: any) => assignment.booking.status === "IN_PROGRESS"
   ).length;
 
   return (
@@ -115,7 +115,7 @@ export default async function StaffDashboardPage() {
             </div>
           ) : (
             <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {assignments.map((assignment) => {
+              {assignments.map((assignment: any) => {
                 const booking = assignment.booking;
 
                 return (

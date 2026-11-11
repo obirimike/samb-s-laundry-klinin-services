@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, BriefcaseBusiness } from "lucide-react";
@@ -29,7 +28,13 @@ export default async function AdminServicesPage() {
       description: true,
       category: true,
       imageUrl: true,
-      isActive: true,
+      status: true,
+      _count: {
+        select: {
+          bookings: true,
+          reviews: true,
+        },
+      },
     },
     orderBy: [{ category: "asc" }, { name: "asc" }],
   });

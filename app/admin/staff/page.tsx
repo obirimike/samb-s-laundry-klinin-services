@@ -20,6 +20,7 @@ export default async function AdminStaffPage() {
       name: true,
       email: true,
       phone: true,
+      accountStatus: true,
       createdAt: true,
       assignmentsReceived: {
         where: { isActive: true },
@@ -29,7 +30,7 @@ export default async function AdminStaffPage() {
   });
 
   const initialStaff = members.map(
-    ({ assignmentsReceived, ...member }) => ({
+    ({ assignmentsReceived, ...member }: any) => ({
       ...member,
       createdAt: member.createdAt.toISOString(),
       activeAssignmentCount: assignmentsReceived.length,

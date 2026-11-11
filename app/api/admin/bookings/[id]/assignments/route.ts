@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { writeAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -109,7 +110,7 @@ export async function POST(
       );
     }
 
-    const assignment = await db.$transaction(async (tx) => {
+    const assignment = await db.$transaction(async (tx: any) => {
       const existing = await tx.bookingAssignment.findFirst({
         where: {
           bookingId,
@@ -148,6 +149,19 @@ export async function POST(
           title: "New booking assignment",
           message: `You have been assigned to booking ${booking.bookingNumber}.`,
           type: "BOOKING_ASSIGNED",
+        },
+      });
+
+      await writeAudit(tx, {
+        actorId: session.user.id,
+        action: "ASSIGNMENT_CREATED",
+        entityType: "BOOKING_ASSIGNMENT",
+        entityId: created.id,
+        changes: {
+          bookingId,
+          bookingNumber: booking.bookingNumber,
+          staffId,
+          staffName: staff.name,
         },
       });
 

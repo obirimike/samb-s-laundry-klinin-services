@@ -267,7 +267,7 @@ export default async function AccountPage() {
             </div>
           ) : (
             <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
-              {bookings.map((booking) => (
+              {bookings.map((booking: any) => (
                 <Link
                   key={booking.id}
                   href={`/account/bookings/${booking.id}`}

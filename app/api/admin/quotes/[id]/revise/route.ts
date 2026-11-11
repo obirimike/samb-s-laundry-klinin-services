@@ -146,7 +146,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const { id } = await context.params;
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: any ) => {
       const source = await tx.quote.findUnique({
         where: { id },
         include: {

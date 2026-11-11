@@ -45,12 +45,33 @@ const rateLimiters = redis
         timeout: 1_000,
       }),
       passwordReset: new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(5, "10 m"),
-  prefix: "samb:password-reset",
-  analytics: true,
-  timeout: 1_000,
-}),
+        redis,
+        limiter: Ratelimit.slidingWindow(5, "10 m"),
+        prefix: "samb:password-reset",
+        analytics: true,
+        timeout: 1_000,
+      }),
+      admin: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(30, "10 m"),
+        prefix: "samb:admin",
+        analytics: true,
+        timeout: 1_000,
+      }),
+      recruitment: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, "15 m"),
+        prefix: "samb:recruitment",
+        analytics: true,
+        timeout: 1_000,
+      }),
+      applicationTracking: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, "10 m"),
+        prefix: "samb:tracking",
+        analytics: true,
+        timeout: 1_000,
+      }),
     }
   : null;
 
@@ -60,7 +81,10 @@ export type RateLimitPolicy =
   | "contact"
   | "booking"
   | "account"
-  | "passwordReset";
+  | "passwordReset"
+  | "admin"
+  | "recruitment"
+  | "applicationTracking";
 
 export function getRequestIdentifier(request: Request, suffix?: string) {
   const forwardedFor = request.headers.get("x-forwarded-for");

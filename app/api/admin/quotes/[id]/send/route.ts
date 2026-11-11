@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendQuoteEmail } from "@/lib/emails";
+import { writeAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export async function POST(
 
     const { id } = await context.params;
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: any ) => {
       const quote = await tx.quote.findUnique({
         where: { id },
         include: {
@@ -100,6 +101,17 @@ export async function POST(
             title: "A service quote is ready",
             message: `Quote ${quote.quoteNumber} is ready for booking ${quote.booking.bookingNumber}.`,
             type: "QUOTE_SENT",
+          },
+        });
+
+        await writeAudit(tx, {
+          actorId: session.user.id,
+          action: "QUOTE_SENT",
+          entityType: "QUOTE",
+          entityId: quote.id,
+          changes: {
+            before: { status: "DRAFT" },
+            after: { status: "SENT" },
           },
         });
       }

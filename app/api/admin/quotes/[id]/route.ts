@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sendQuoteEmail } from "@/lib/emails";
+import { writeAudit } from "@/lib/audit";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,154 +12,92 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(
-  _request: Request,
+const patchSchema = z.object({
+  status: z.enum(["WITHDRAWN", "EXPIRED"]).optional(),
+  reason: z.string().trim().max(500).optional(),
+});
+
+export async function PATCH(
+  request: Request,
   { params }: RouteContext
 ) {
   try {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { message: "You must sign in to continue." },
-        { status: 401 }
-      );
+      return apiError(401, "UNAUTHORIZED", "Please sign in.");
     }
 
     if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { message: "Only administrators can send quotes." },
-        { status: 403 }
-      );
+      return apiError(403, "FORBIDDEN", "Only administrators can manage quotes.");
     }
 
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const parsed = patchSchema.safeParse(body);
 
-    const quote = await db.quote.findUnique({
+    if (!parsed.success) {
+      return apiError(422, "VALIDATION_ERROR", "Invalid update payload.", {
+        errors: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const existing = await db.quote.findUnique({
       where: { id },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            bookingNumber: true,
-            customer: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-            service: {
-              select: {
-                name: true,
-              },
-            },
+      include: { booking: { select: { customerId: true, bookingNumber: true } } },
+    });
+
+    if (!existing) {
+      return apiError(404, "QUOTE_NOT_FOUND", "Quote not found.");
+    }
+
+    const { status, reason } = parsed.data;
+
+    if (status === "WITHDRAWN") {
+      if (existing.status !== "DRAFT" && existing.status !== "SENT") {
+        return apiError(
+          409,
+          "CANNOT_WITHDRAW",
+          `Quotes in ${existing.status} status cannot be withdrawn.`
+        );
+      }
+
+      await db.$transaction(async (tx: any ) => {
+        await tx.quote.update({
+          where: { id },
+          data: { status: "WITHDRAWN" },
+        });
+
+        await writeAudit(tx, {
+          actorId: session.user.id,
+          action: "QUOTE_WITHDRAWN",
+          entityType: "QUOTE",
+          entityId: id,
+          reason,
+          changes: {
+            before: { status: existing.status },
+            after: { status: "WITHDRAWN" },
           },
-        },
-      },
-    });
+        });
 
-    if (!quote) {
-      return NextResponse.json(
-        { message: "Quote not found." },
-        { status: 404 }
-      );
-    }
-
-    if (quote.status !== "DRAFT") {
-      return NextResponse.json(
-        { message: "Only draft quotes can be sent." },
-        { status: 409 }
-      );
-    }
-
-    const now = new Date();
-
-    if (quote.expiresAt && quote.expiresAt <= now) {
-      await db.quote.updateMany({
-        where: { id: quote.id, status: "DRAFT" },
-        data: { status: "EXPIRED" },
+        if (existing.status === "SENT") {
+          await tx.notification.create({
+            data: {
+              userId: existing.booking.customerId,
+              title: "Quote withdrawn",
+              message: `Quote ${existing.quoteNumber} for booking ${existing.booking.bookingNumber} has been withdrawn by SAMB administration.`,
+              type: "QUOTE_WITHDRAWN",
+            },
+          });
+        }
       });
 
-      return NextResponse.json(
-        { message: "This quote has expired. Edit the expiry or create a new quote." },
-        { status: 409 }
-      );
+      return apiSuccess(`Quote ${existing.quoteNumber} has been withdrawn.`);
     }
 
-    // Persist database changes independently of email delivery.
-    const updated = await db.quote.updateMany({
-      where: {
-        id: quote.id,
-        status: "DRAFT",
-      },
-      data: {
-        status: "SENT",
-        sentAt: now,
-      },
-    });
-
-    if (updated.count !== 1) {
-      return NextResponse.json(
-        {
-          message:
-            "The quote status changed concurrently. Refresh the quote list and verify its status.",
-        },
-        { status: 409 }
-      );
-    }
-
-    // Create in-app notification independently of email delivery.
-    try {
-      await db.notification.create({
-        data: {
-          userId: quote.booking.customer.id,
-          title: "A service quote is ready",
-          message: `Quote ${quote.quoteNumber} is ready for booking ${quote.booking.bookingNumber}.`,
-          type: "QUOTE_SENT",
-        },
-      });
-    } catch (notifError) {
-      console.error("Failed to create quote sent notification:", notifError);
-    }
-
-    // Email delivery is optional and failures must not break the workflow.
-    const emailResult = await sendQuoteEmail({
-      to: quote.booking.customer.email,
-      customerName: quote.booking.customer.name,
-      quoteNumber: quote.quoteNumber,
-      bookingNumber: quote.booking.bookingNumber,
-      serviceName: quote.booking.service.name,
-      amount: quote.amount.toString(),
-      currency: quote.currency,
-      breakdown: quote.breakdown,
-      terms: quote.terms,
-      expiresAt: quote.expiresAt,
-    });
-
-    const updatedQuote = await db.quote.findUnique({
-      where: { id: quote.id },
-      select: {
-        id: true,
-        quoteNumber: true,
-        status: true,
-        sentAt: true,
-      },
-    });
-
-    return NextResponse.json({
-      message: emailResult.success
-        ? "Quote sent to the customer successfully."
-        : "The quote is available in the customer's account, but the email notification could not be delivered.",
-      emailSent: emailResult.success,
-      quote: updatedQuote,
-    });
+    return apiError(400, "BAD_REQUEST", "No valid status change specified.");
   } catch (error) {
-    console.error("Failed to send quote:", error);
-
-    return NextResponse.json(
-      { message: "Unable to send the quote right now." },
-      { status: 500 }
-    );
+    console.error("Quote management error:", error);
+    return apiError(500, "QUOTE_UPDATE_FAILED", "Unable to update this quote right now.");
   }
 }

@@ -125,14 +125,14 @@ export default async function BookingHistoryPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <p className="text-sm text-slate-500">Awaiting review</p>
               <p className="mt-2 text-3xl font-extrabold text-amber-600">
-                {bookings.filter((booking) => booking.status === "PENDING").length}
+                {bookings.filter((booking: any) => booking.status === "PENDING").length}
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <p className="text-sm text-slate-500">Completed</p>
               <p className="mt-2 text-3xl font-extrabold text-emerald-600">
-                {bookings.filter((booking) => booking.status === "COMPLETED").length}
+                {bookings.filter((booking: any) => booking.status === "COMPLETED").length}
               </p>
             </div>
           </div>
@@ -166,7 +166,7 @@ export default async function BookingHistoryPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {bookings.map((booking) => (
+                {bookings.map((booking: any) => (
                   <article
                     key={booking.id}
                     className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-blue-200 hover:shadow-sm sm:p-6"

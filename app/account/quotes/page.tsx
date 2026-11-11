@@ -73,7 +73,7 @@ export default async function AccountQuotesPage() {
 
   const now = new Date();
 
-  const initialQuotes = quotes.map((quote) => {
+  const initialQuotes = quotes.map((quote: any) => {
     const isExpired =
       quote.status === "SENT" &&
       quote.expiresAt &&

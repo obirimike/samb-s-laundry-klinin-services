@@ -1,11 +1,11 @@
-
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight, CalendarDays, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import NavBar from "@/components/layout/NavBar";
 import Footer from "@/components/layout/Footer";
+import CustomerManager from "@/components/admin/CustomerManager";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,7 @@ export default async function AdminCustomerDetailPage({
       name: true,
       email: true,
       phone: true,
+      accountStatus: true,
       createdAt: true,
       bookings: {
         select: {
@@ -70,59 +71,21 @@ export default async function AdminCustomerDetailPage({
             <ArrowLeft size={17} /> Back to customers
           </Link>
 
-          <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                <UserRound size={28} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-blue-700">
-                  Customer profile
-                </p>
-                <h1 className="mt-1 break-words text-2xl font-extrabold text-slate-900">
-                  {customer.name}
-                </h1>
-              </div>
-            </div>
+          <div className="mt-7">
+            <CustomerManager
+              customer={{
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                accountStatus: customer.accountStatus,
+                createdAt: customer.createdAt.toISOString(),
+                bookingCount: customer.bookings.length,
+              }}
+            />
+          </div>
 
-            <div className="mt-7 grid gap-5 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Email
-                </p>
-                <p className="mt-2 break-all text-slate-900">
-                  {customer.email}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Phone
-                </p>
-                <p className="mt-2 text-slate-900">
-                  {customer.phone || "Not provided"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Customer since
-                </p>
-                <p className="mt-2 text-slate-900">
-                  {formatDate(customer.createdAt)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Total bookings
-                </p>
-                <p className="mt-2 text-slate-900">
-                  {customer.bookings.length}
-                  {customer.bookings.length === 100 ? " (latest 100)" : ""}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-6">
               <div className="flex items-center gap-3">
                 <CalendarDays size={22} className="text-blue-700" />
@@ -138,11 +101,11 @@ export default async function AdminCustomerDetailPage({
               </p>
             ) : (
               <div className="divide-y divide-slate-100">
-                {customer.bookings.map((booking) => (
+                {customer.bookings.map((booking: any) => (
                   <Link
                     key={booking.id}
                     href={`/admin/bookings/${booking.id}`}
-                    className="flex flex-col justify-between gap-3 p-5 hover:bg-slate-50 sm:flex-row sm:items-center"
+                    className="flex flex-col justify-between gap-3 p-5 hover:bg-slate-50 sm:flex-row sm:items-center transition"
                   >
                     <div>
                       <p className="break-all font-bold text-slate-900">

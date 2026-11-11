@@ -47,7 +47,7 @@ export default async function BookingPage({
   }
 
   const services = await db.service.findMany({
-    where: { isActive: true },
+    where: { status: "ACTIVE" },
     select: {
       id: true,
       name: true,
@@ -59,7 +59,7 @@ export default async function BookingPage({
   });
 
   const selectedService = query.service
-    ? services.find((service) => service.slug === query.service || service.id === query.service)
+    ? services.find((service: any) => service.slug === query.service || service.id === query.service)
     : undefined;
 
   return (

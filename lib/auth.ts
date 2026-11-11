@@ -35,6 +35,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user?.passwordHash) return null;
 
+        if (user.accountStatus === "SUSPENDED") return null;
+
         const validPassword = await compare(
           parsed.data.password,
           user.passwordHash
@@ -64,11 +66,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.id) {
         const currentUser = await db.user.findUnique({
           where: { id: token.id },
-          select: { sessionVersion: true },
+          select: { sessionVersion: true, accountStatus: true },
         });
 
         if (
           !currentUser ||
+          currentUser.accountStatus === "SUSPENDED" ||
           currentUser.sessionVersion !== token.sessionVersion
         ) {
           delete token.id;

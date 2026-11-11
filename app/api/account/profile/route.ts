@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { suspendedAccountResponse } from "@/lib/account-access";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { limitRequest, rateLimitHeaders } from "@/lib/rate-limit";
@@ -36,6 +37,9 @@ export async function PATCH(request: Request) {
         { status: 401 }
       );
     }
+
+    const suspended = await suspendedAccountResponse(session.user.id);
+    if (suspended) return suspended;
 
     const rateLimit = await limitRequest(
       request,

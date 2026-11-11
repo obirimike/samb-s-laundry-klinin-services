@@ -223,6 +223,7 @@ export default async function AdminBookingDetailPage({
 
               <BookingManager
                 bookingId={booking.id}
+                bookingNumber={booking.bookingNumber}
                 currentStatus={booking.status}
                 initialNotes={booking.adminNotes || ""}
               />

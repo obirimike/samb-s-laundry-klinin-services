@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { writeAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export async function DELETE(
 
     const { id: bookingId, assignmentId } = await context.params;
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: any) => {
       const assignment = await tx.bookingAssignment.findFirst({
         where: {
           id: assignmentId,
@@ -80,6 +81,19 @@ export async function DELETE(
           title: "Booking assignment updated",
           message: `You have been unassigned from booking ${assignment.booking.bookingNumber}.`,
           type: "BOOKING_UNASSIGNED",
+        },
+      });
+
+      await writeAudit(tx, {
+        actorId: session.user.id,
+        action: "ASSIGNMENT_CANCELLED",
+        entityType: "BOOKING_ASSIGNMENT",
+        entityId: assignmentId,
+        changes: {
+          bookingId,
+          bookingNumber: assignment.booking.bookingNumber,
+          staffId: assignment.staff.id,
+          staffName: assignment.staff.name,
         },
       });
 
