@@ -74,7 +74,7 @@ export default async function CareersPage() {
               <span>Join Our Growing Team</span>
             </div>
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-              Join the SAMB&apos;s Team
+              Join the SAMB&apos;s Laundry &amp; Klinin Services Team
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-slate-300">
               We take pride in setting the standard for professional cleaning, laundry and pest controlling services in Ghana.
