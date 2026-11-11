@@ -1,11 +1,21 @@
-
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Plus, Save } from "lucide-react";
-
+import {
+  LoaderCircle,
+  Plus,
+  Save,
+  Trash2,
+  Power,
+  PauseCircle,
+  PlayCircle,
+} from "lucide-react";
 import { ServiceCategory } from "@/types/service";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
+
+type ServiceStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 
 type ServiceItem = {
   id: string;
@@ -14,7 +24,11 @@ type ServiceItem = {
   description: string;
   category: ServiceCategory;
   imageUrl: string | null;
-  isActive: boolean;
+  status: ServiceStatus;
+  _count?: {
+    bookings: number;
+    reviews: number;
+  };
 };
 
 const emptyForm = {
@@ -34,8 +48,26 @@ export default function ServiceManager({
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+
+  // Confirmation modal states
+  const [deleteTarget, setDeleteTarget] = useState<ServiceItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<{
+    service: ServiceItem;
+    newStatus: ServiceStatus;
+  } | null>(null);
+
+  // Feedback modal state
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    variant: "success",
+    title: "",
+    message: "",
+  });
 
   function startEditing(service: ServiceItem) {
     setEditingId(service.id);
@@ -46,16 +78,12 @@ export default function ServiceManager({
       category: service.category,
       imageUrl: service.imageUrl || "",
     });
-    setError("");
-    setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function resetForm() {
     setEditingId(null);
     setForm(emptyForm);
-    setError("");
-    setMessage("");
   }
 
   function updateField(field: keyof typeof emptyForm, value: string) {
@@ -73,8 +101,6 @@ export default function ServiceManager({
   async function saveService(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch(
@@ -87,7 +113,7 @@ export default function ServiceManager({
           body: JSON.stringify({
             ...form,
             slug: makeSlug(form.slug),
-            imageUrl: form.imageUrl.trim(),
+            imageUrl: form.imageUrl.trim() || undefined,
           }),
         }
       );
@@ -95,46 +121,137 @@ export default function ServiceManager({
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Unable to save the service.");
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Unable to Save Service",
+          message: data.message || "Failed to save service details.",
+        });
         return;
       }
 
-      setMessage(data.message || "Service saved successfully.");
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: editingId ? "Service Updated" : "Service Added Successfully",
+        message:
+          data.message ||
+          (editingId
+            ? "Service details have been saved."
+            : "The new laundry or cleaning service is now available."),
+      });
+
       setEditingId(null);
       setForm(emptyForm);
       router.refresh();
     } catch {
-      setError("Connection error. Please try again.");
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Error",
+        message: "We couldn't reach the server. Please try again.",
+      });
     } finally {
       setBusy(false);
     }
   }
 
-  async function toggleService(service: ServiceItem) {
+  async function executeStatusChange() {
+    if (!statusTarget) return;
+    const { service, newStatus } = statusTarget;
+    setStatusTarget(null);
     setBusy(true);
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch(`/api/admin/services/${service.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !service.isActive }),
+        body: JSON.stringify({ status: newStatus }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Unable to change service status.");
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Status Change Failed",
+          message: data.message || "Unable to update service status.",
+        });
         return;
       }
 
-      setMessage(
-        `${service.name} is now ${service.isActive ? "inactive" : "active"}.`
-      );
+      const title =
+        newStatus === "ACTIVE"
+          ? "Service Activated"
+          : newStatus === "SUSPENDED"
+            ? "Service Suspended"
+            : "Service Deactivated";
+
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title,
+        message:
+          data.message ||
+          `${service.name} is now ${newStatus.toLowerCase()}.`,
+      });
+
       router.refresh();
     } catch {
-      setError("Connection error. Please try again.");
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Error",
+        message: "Failed to connect to the server. Please try again.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function executeDelete() {
+    if (!deleteTarget) return;
+    const service = deleteTarget;
+    setBusy(true);
+
+    try {
+      const response = await fetch(`/api/admin/services/${service.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: service.name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setDeleteTarget(null);
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Cannot Delete Service",
+          message: data.message || "This service cannot be removed.",
+        });
+        return;
+      }
+
+      setDeleteTarget(null);
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: "Service Deleted",
+        message: `Service "${service.name}" was permanently removed.`,
+      });
+
+      router.refresh();
+    } catch {
+      setDeleteTarget(null);
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Problem",
+        message: "Failed to connect to the server. Please try again.",
+      });
     } finally {
       setBusy(false);
     }
@@ -142,9 +259,10 @@ export default function ServiceManager({
 
   return (
     <div className="space-y-8">
+      {/* Form Section */}
       <form
         onSubmit={saveService}
-        className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7"
+        className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 shadow-sm"
       >
         <h2 className="text-xl font-bold text-slate-900">
           {editingId ? "Edit service" : "Add a service"}
@@ -170,7 +288,7 @@ export default function ServiceManager({
                   ...(editingId ? {} : { slug: makeSlug(name) }),
                 }));
               }}
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               placeholder="e.g. Office Cleaning"
             />
           </label>
@@ -183,7 +301,7 @@ export default function ServiceManager({
               onChange={(event) =>
                 updateField("slug", makeSlug(event.target.value))
               }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               placeholder="office-cleaning"
             />
           </label>
@@ -192,8 +310,10 @@ export default function ServiceManager({
             Category
             <select
               value={form.category}
-              onChange={(event) => updateField("category", event.target.value as ServiceCategory)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              onChange={(event) =>
+                updateField("category", event.target.value as ServiceCategory)
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             >
               <option value="CLEANING">Cleaning</option>
               <option value="LAUNDRY">Laundry</option>
@@ -208,7 +328,7 @@ export default function ServiceManager({
               type="url"
               value={form.imageUrl}
               onChange={(event) => updateField("imageUrl", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               placeholder="https://..."
             />
           </label>
@@ -224,28 +344,17 @@ export default function ServiceManager({
               onChange={(event) =>
                 updateField("description", event.target.value)
               }
-              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               placeholder="Describe what this service includes..."
             />
           </label>
         </div>
 
-        {error && (
-          <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </p>
-        )}
-        {message && (
-          <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
-            {message}
-          </p>
-        )}
-
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-60 transition shadow-sm"
           >
             {busy ? (
               <LoaderCircle size={18} className="animate-spin" />
@@ -261,22 +370,23 @@ export default function ServiceManager({
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition"
             >
-              Stop editing
+              Cancel editing
             </button>
           )}
         </div>
       </form>
 
+      {/* Services List */}
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
             Existing services
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Inactive services remain in historical bookings but should not be
-            offered for new requests.
+            Manage service statuses. Inactive or suspended services do not appear
+            in public bookings, while historical bookings retain their service details.
           </p>
         </div>
 
@@ -285,65 +395,192 @@ export default function ServiceManager({
             No services found.
           </div>
         ) : (
-          services.map((service) => (
-            <article
-              key={service.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
-            >
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {service.name}
-                    </h3>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        service.isActive
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {service.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
-                    {service.category}
-                  </p>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                    {service.description}
-                  </p>
-                  <p className="mt-2 break-all text-xs text-slate-400">
-                    /services/{service.slug}
-                  </p>
-                </div>
+          services.map((service) => {
+            const hasHistory =
+              (service._count?.bookings ?? 0) > 0 ||
+              (service._count?.reviews ?? 0) > 0;
 
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => startEditing(service)}
-                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => toggleService(service)}
-                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60 ${
-                      service.isActive
-                        ? "bg-red-50 text-red-700 hover:bg-red-100"
-                        : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    }`}
-                  >
-                    {service.isActive ? "Deactivate" : "Activate"}
-                  </button>
+            return (
+              <article
+                key={service.id}
+                className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm"
+              >
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {service.name}
+                      </h3>
+                      <span
+                        className={`rounded-full px-3 py-0.5 text-xs font-bold ${
+                          service.status === "ACTIVE"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : service.status === "SUSPENDED"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {service.status}
+                      </span>
+                      {hasHistory && (
+                        <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-medium text-blue-700">
+                          {service._count?.bookings} booking(s)
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
+                      {service.category.replaceAll("_", " ")}
+                    </p>
+
+                    <p className="mt-2.5 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                      {service.description}
+                    </p>
+
+                    <p className="mt-2 break-all text-xs font-mono text-slate-400">
+                      /services/{service.slug}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => startEditing(service)}
+                      className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition"
+                    >
+                      Edit
+                    </button>
+
+                    {/* Status actions */}
+                    {service.status !== "ACTIVE" && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          setStatusTarget({ service, newStatus: "ACTIVE" })
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 transition"
+                      >
+                        <PlayCircle size={14} />
+                        Activate
+                      </button>
+                    )}
+
+                    {service.status === "ACTIVE" && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            setStatusTarget({ service, newStatus: "SUSPENDED" })
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-60 transition"
+                        >
+                          <PauseCircle size={14} />
+                          Suspend
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            setStatusTarget({ service, newStatus: "INACTIVE" })
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60 transition"
+                        >
+                          <Power size={14} />
+                          Deactivate
+                        </button>
+                      </>
+                    )}
+
+                    {/* Delete button */}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setDeleteTarget(service)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 transition"
+                      title={
+                        hasHistory
+                          ? "This service has bookings; permanent deletion is prevented."
+                          : "Permanently delete service"
+                      }
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))
+              </article>
+            );
+          })
         )}
       </section>
+
+      {/* Confirmation Modal for Status Changes */}
+      {statusTarget && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setStatusTarget(null)}
+          onConfirm={executeStatusChange}
+          title={
+            statusTarget.newStatus === "ACTIVE"
+              ? "Activate this service?"
+              : statusTarget.newStatus === "SUSPENDED"
+                ? "Suspend this service temporarily?"
+                : "Deactivate this service?"
+          }
+          description={
+            statusTarget.newStatus === "ACTIVE"
+              ? `Customers will be able to discover and book ${statusTarget.service.name} immediately.`
+              : statusTarget.newStatus === "SUSPENDED"
+                ? `${statusTarget.service.name} will be temporarily suspended and hidden from public booking options.`
+                : `${statusTarget.service.name} will be marked as inactive and removed from public booking options.`
+          }
+          consequences={
+            statusTarget.newStatus !== "ACTIVE"
+              ? "Existing bookings will retain their service references, but new booking requests cannot be submitted."
+              : undefined
+          }
+          recordName={statusTarget.service.name}
+          confirmText={
+            statusTarget.newStatus === "ACTIVE"
+              ? "Activate Service"
+              : statusTarget.newStatus === "SUSPENDED"
+                ? "Suspend Service"
+                : "Deactivate Service"
+          }
+          isLoading={busy}
+        />
+      )}
+
+      {/* Confirmation Modal for Permanent Delete */}
+      {deleteTarget && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={executeDelete}
+          title="Delete this service?"
+          description="This action will permanently remove the service if no protected records depend on it."
+          consequences="If this service has associated bookings or reviews, deletion will be blocked to preserve historical business records."
+          recordName={deleteTarget.name}
+          confirmText="Permanently Delete"
+          isDestructive={true}
+          requireConfirmationText={deleteTarget.name}
+          confirmationPlaceholder={deleteTarget.name}
+          isLoading={busy}
+        />
+      )}
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedback.isOpen}
+        onClose={() => setFeedback((prev) => ({ ...prev, isOpen: false }))}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+      />
     </div>
   );
 }

@@ -116,7 +116,7 @@ export default async function PublishedReviews({
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {reviews.map((review) => {
+          {reviews.map((review: any) => {
             const firstName =
               review.customer.name.trim().split(/\s+/)[0] ||
               "Customer";

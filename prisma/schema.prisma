@@ -1,15 +1,24 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// use prisma-8
 
-datasource db {
-  provider = "postgresql"
-}
+// use prisma-8
 
+// Prisma 8 PSL contract.
+// generator and datasource blocks are configured in prisma.config.ts — not here.
 enum UserRole {
   CUSTOMER
   ADMIN
   STAFF
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
 enum ServiceCategory {
@@ -31,6 +40,7 @@ enum ContactMessageStatus {
   NEW
   READ
   RESOLVED
+  ARCHIVED
 }
 
 enum QuoteStatus {
@@ -48,62 +58,98 @@ enum ReviewStatus {
   HIDDEN
 }
 
+enum VacancyStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  CASUAL
+}
+
+enum WorkArrangement {
+  ON_SITE
+  HYBRID
+  REMOTE
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
 model User {
-  id             String   @id @default(uuid())
-  name           String
-  email          String   @unique
-  phone          String?
-  passwordHash   String?
-  role           UserRole @default(CUSTOMER)
-  sessionVersion Int      @default(0)
+  id                       String                     @id @onCreate(uuid())
+  name                     String
+  email                    String                     @unique
+  phone                    String?
+  passwordHash             String?
+  role                     UserRole                   @default(CUSTOMER)
+  accountStatus            AccountStatus              @default(ACTIVE)
+  sessionVersion           Int                        @default(0)
 
-  bookings              Booking[]
-  notifications         Notification[]
-  quotesCreated         Quote[]              @relation("QuotesCreated")
-  assignmentsReceived   BookingAssignment[]  @relation("AssignmentStaff")
-  assignmentsCreated    BookingAssignment[]  @relation("AssignmentCreatedBy")
-  assignmentsUnassigned BookingAssignment[]  @relation("AssignmentUnassignedBy")
-  reviews               Review[]             @relation("CustomerReviews")
-  reviewsModerated      Review[]             @relation("ReviewsModerated")
-  passwordResetTokens   PasswordResetToken[]
+  bookings                 Booking[]
+  notifications            Notification[]
+  quotesCreated            Quote[]                    @relation("QuotesCreated")
+  assignmentsReceived      BookingAssignment[]        @relation("AssignmentStaff")
+  assignmentsCreated       BookingAssignment[]        @relation("AssignmentCreatedBy")
+  assignmentsUnassigned    BookingAssignment[]        @relation("AssignmentUnassignedBy")
+  reviews                  Review[]                   @relation("CustomerReviews")
+  reviewsModerated         Review[]                   @relation("ReviewsModerated")
+  passwordResetTokens      PasswordResetToken[]
+  auditLogs                AuditLog[]
+  vacanciesCreated         Vacancy[]                  @relation("VacanciesCreated")
+  applicationStatusChanges ApplicationStatusHistory[] @relation("AdminStatusChanges")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @onCreate(now()) @onUpdate(now())
 
   @@index([email])
   @@index([role])
+  @@index([accountStatus])
 }
 
 model Service {
-  id          String          @id @default(uuid())
+  id          String          @id @onCreate(uuid())
   name        String
   slug        String          @unique
   description String
   category    ServiceCategory
   imageUrl    String?
-  isActive    Boolean         @default(true)
+  status      ServiceStatus   @default(ACTIVE)
 
-  bookings Booking[]
-  reviews  Review[]
+  bookings    Booking[]
+  reviews     Review[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @onCreate(now()) @onUpdate(now())
 
   @@index([category])
-  @@index([isActive])
+  @@index([status])
 }
 
 model Booking {
-  id            String @id @default(uuid())
-  bookingNumber String @unique
+  id                  String              @id @onCreate(uuid())
+  bookingNumber       String              @unique
 
-  customerId String
-  serviceId  String
+  customerId          String
+  serviceId           String
 
-  status BookingStatus @default(PENDING)
+  status              BookingStatus       @default(PENDING)
 
-  preferredDate DateTime
-  preferredTime String
+  preferredDate       DateTime
+  preferredTime       String
 
   address             String
   propertyType        String?
@@ -111,19 +157,19 @@ model Booking {
   estimatedSize       String?
   specialInstructions String?
 
-  adminNotes String?
+  adminNotes          String?
 
-  customer    User                @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  service     Service             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  quotes      Quote[]
-  assignments BookingAssignment[]
-  review      Review?
+  customer            User                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  service             Service             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  quotes              Quote[]
+  assignments         BookingAssignment[]
+  review              Review?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  confirmedAt DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @onCreate(now()) @onUpdate(now())
+  confirmedAt         DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
 
   @@index([customerId])
   @@index([serviceId])
@@ -132,15 +178,15 @@ model Booking {
 }
 
 model Notification {
-  id String @id @default(uuid())
+  id        String   @id @onCreate(uuid())
 
-  userId  String
-  title   String
-  message String
-  type    String
-  isRead  Boolean @default(false)
+  userId    String
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -149,50 +195,50 @@ model Notification {
 }
 
 model ContactMessage {
-  id String @id @default(uuid())
+  id        String               @id @onCreate(uuid())
 
-  name    String
-  email   String
-  phone   String?
-  subject String
-  message String
-  status  ContactMessageStatus @default(NEW)
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    ContactMessageStatus @default(NEW)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime             @default(now())
 
   @@index([status])
   @@index([createdAt])
 }
 
 model Quote {
-  id          String @id @default(uuid())
-  quoteNumber String @unique
+  id              String               @id @onCreate(uuid())
+  quoteNumber     String               @unique
 
-  bookingId   String
-  createdById String
+  bookingId       String
+  createdById     String
 
-  amount    Decimal @db.Decimal(12, 2)
-  currency  String  @default("GHS")
-  breakdown Json?
-  terms     String? @db.Text
+  amount          NumericString(12, 2)
+  currency        String               @default("GHS")
+  breakdown       Json?
+  terms           Text?
 
-  status       QuoteStatus @default(DRAFT)
-  expiresAt    DateTime?
-  sentAt       DateTime?
-  respondedAt  DateTime?
-  responseNote String?     @db.Text
+  status          QuoteStatus          @default(DRAFT)
+  expiresAt       DateTime?
+  sentAt          DateTime?
+  respondedAt     DateTime?
+  responseNote    Text?
 
-  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  createdBy User    @relation("QuotesCreated", fields: [createdById], references: [id], onDelete: Restrict)
+  booking         Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  createdBy       User                 @relation("QuotesCreated", fields: [createdById], references: [id], onDelete: Restrict)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @onCreate(now()) @onUpdate(now())
 
-  revision        Int     @default(1)
+  revision        Int                  @default(1)
   previousQuoteId String?
 
-  previousQuote Quote?  @relation("QuoteRevisions", fields: [previousQuoteId], references: [id], onDelete: SetNull)
-  revisions     Quote[] @relation("QuoteRevisions")
+  previousQuote   Quote?               @relation("QuoteRevisions", fields: [previousQuoteId], references: [id], onDelete: SetNull)
+  revisions       Quote[]              @relation("QuoteRevisions")
 
   @@unique([previousQuoteId])
   @@index([bookingId, createdAt])
@@ -202,22 +248,22 @@ model Quote {
 }
 
 model BookingAssignment {
-  id             String  @id @default(uuid())
+  id             String    @id @onCreate(uuid())
   bookingId      String
   staffId        String
   assignedById   String
   unassignedById String?
 
-  notes    String? @db.Text
-  isActive Boolean @default(true)
+  notes          Text?
+  isActive       Boolean   @default(true)
 
-  assignedAt   DateTime  @default(now())
-  unassignedAt DateTime?
+  assignedAt     DateTime  @default(now())
+  unassignedAt   DateTime?
 
-  booking      Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  staff        User    @relation("AssignmentStaff", fields: [staffId], references: [id], onDelete: Restrict)
-  assignedBy   User    @relation("AssignmentCreatedBy", fields: [assignedById], references: [id], onDelete: Restrict)
-  unassignedBy User?   @relation("AssignmentUnassignedBy", fields: [unassignedById], references: [id], onDelete: SetNull)
+  booking        Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  staff          User      @relation("AssignmentStaff", fields: [staffId], references: [id], onDelete: Restrict)
+  assignedBy     User      @relation("AssignmentCreatedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  unassignedBy   User?     @relation("AssignmentUnassignedBy", fields: [unassignedById], references: [id], onDelete: SetNull)
 
   @@index([bookingId, isActive])
   @@index([staffId, isActive])
@@ -226,42 +272,144 @@ model BookingAssignment {
 }
 
 model Review {
-  id         String @id @default(uuid())
-  bookingId  String @unique
-  customerId String
-  serviceId  String
+  id             String       @id @onCreate(uuid())
+  bookingId      String       @unique
+  customerId     String
+  serviceId      String
 
-  rating  Int
-  comment String?      @db.Text
-  status  ReviewStatus @default(PENDING)
+  rating         Int
+  comment        Text?
+  status         ReviewStatus @default(PENDING)
 
-  moderationNote String?   @db.Text
+  moderationNote Text?
   moderatedById  String?
   moderatedAt    DateTime?
 
-  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  customer    User    @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Restrict)
-  service     Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  moderatedBy User?   @relation("ReviewsModerated", fields: [moderatedById], references: [id], onDelete: SetNull)
+  booking        Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customer       User         @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Restrict)
+  service        Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  moderatedBy    User?        @relation("ReviewsModerated", fields: [moderatedById], references: [id], onDelete: SetNull)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @onCreate(now()) @onUpdate(now())
 
   @@index([serviceId, status, createdAt])
   @@index([customerId, createdAt])
   @@index([status, createdAt])
 }
 
+model AuditLog {
+  id         String   @id @onCreate(uuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  reason     Text?
+  changes    Json?
+
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
 model PasswordResetToken {
-  id        String    @id @default(uuid())
+  id        String    @id @onCreate(uuid())
   userId    String
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Vacancy {
+  id               String           @id @onCreate(uuid())
+  title            String
+  slug             String           @unique
+  department       String
+  location         String           @default("Accra, Ghana")
+  employmentType   EmploymentType   @default(FULL_TIME)
+  workArrangement  WorkArrangement  @default(ON_SITE)
+  description      Text
+  responsibilities Text
+  requirements     Text
+  skills           Text?
+  openings         Int              @default(1)
+  deadline         DateTime?
+  status           VacancyStatus    @default(DRAFT)
+
+  createdById      String?
+  createdBy        User?            @relation("VacanciesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  applications     JobApplication[]
+
+  publishedAt      DateTime?
+  closedAt         DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @onCreate(now()) @onUpdate(now())
+
+  @@index([status])
+  @@index([slug])
+  @@index([department])
+  @@index([deadline])
+  @@index([createdAt])
+}
+
+model JobApplication {
+  id                   String                     @id @onCreate(uuid())
+  applicationReference String                     @unique
+  vacancyId            String?
+  fullName             String
+  email                String
+  phone                String
+  location             String
+  coverLetter          Text?
+
+  cvStoragePath        String
+  cvFileName           String
+  cvMimeType           String
+  cvFileSize           Int
+
+  status               ApplicationStatus          @default(SUBMITTED)
+  adminNotes           Text?
+
+  vacancy              Vacancy?                   @relation(fields: [vacancyId], references: [id], onDelete: SetNull)
+  statusHistory        ApplicationStatusHistory[]
+
+  submittedAt          DateTime                   @default(now())
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @onCreate(now()) @onUpdate(now())
+
+  @@index([applicationReference])
+  @@index([email])
+  @@index([status])
+  @@index([vacancyId])
+  @@index([submittedAt])
+  @@index([createdAt])
+}
+
+model ApplicationStatusHistory {
+  id             String             @id @onCreate(uuid())
+  applicationId  String
+  previousStatus ApplicationStatus?
+  newStatus      ApplicationStatus
+  actorId        String?
+  note           Text?
+
+  application    JobApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actor          User?              @relation("AdminStatusChanges", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime           @default(now())
+
+  @@index([applicationId, createdAt])
+  @@index([actorId])
 }

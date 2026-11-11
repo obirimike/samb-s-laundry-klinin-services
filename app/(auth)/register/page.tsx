@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -6,6 +5,18 @@ import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
+import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
+
+/** Returns true when the password satisfies all strength criteria. */
+function isStrongPassword(pw: string): boolean {
+  return (
+    pw.length >= 8 &&
+    /[a-z]/.test(pw) &&
+    /[A-Z]/.test(pw) &&
+    /[0-9]/.test(pw) &&
+    /[^A-Za-z0-9]/.test(pw)
+  );
+}
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -29,6 +40,13 @@ export default function RegisterPage() {
 
     if (password.length < 8) {
       setError("Your password must contain at least 8 characters.");
+      return;
+    }
+
+    if (!isStrongPassword(password)) {
+      setError(
+        "Your password must include upper and lower-case letters, a number, and a special character."
+      );
       return;
     }
 
@@ -171,6 +189,7 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* Password field + strength indicator */}
           <div>
             <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
               Password
@@ -201,10 +220,16 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
               </button>
             </div>
+
+            {/* Strength indicator — shown only once the user starts typing */}
+            <PasswordStrengthIndicator password={password} />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-slate-700">
+            <label
+              htmlFor="confirmPassword"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
               Confirm password
             </label>
             <div className="relative">
@@ -249,7 +274,7 @@ export default function RegisterPage() {
           </p>
 
           <p className="text-center text-xs leading-5 text-slate-500">
-            Have a great experience with SAMB&apos;s Laundry & Klinin Services
+            Have a great experience with SAMB&apos;s Laundry &amp; Klinin Services
           </p>
         </form>
       </div>

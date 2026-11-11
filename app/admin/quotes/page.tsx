@@ -104,7 +104,7 @@ export default async function AdminQuotesPage() {
     }),
   ]);
 
-  const initialQuotes = quotes.map((quote) => ({
+  const initialQuotes = quotes.map((quote: any) => ({
     id: quote.id,
     quoteNumber: quote.quoteNumber,
     revision: quote.revision,
@@ -131,7 +131,7 @@ export default async function AdminQuotesPage() {
     createdBy: quote.createdBy,
   }));
 
-  const availableBookings = bookings.map((booking) => ({
+  const availableBookings = bookings.map((booking: any) => ({
     ...booking,
     preferredDate: booking.preferredDate.toISOString(),
   }));

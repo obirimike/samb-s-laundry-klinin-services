@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "prisma/schema.d.ts",
+    "prisma/schema.json",
+    ".agents/**",
+    ".devin/**",
+    ".claude/**",
+    ".cursor/**",
   ]),
 ]);
 

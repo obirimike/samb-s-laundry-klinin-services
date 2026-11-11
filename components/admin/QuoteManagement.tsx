@@ -3,6 +3,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { buildQuoteWhatsAppMessage } from "@/lib/whatsapp";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 type QuoteStatus =
   | "DRAFT"
@@ -132,6 +134,12 @@ function statusLabel(status: string) {
   );
 }
 
+/** Returns true when an ISO date string (YYYY-MM-DD) refers to a date that has not yet passed. */
+function isoDateIsFuture(dateStr: string): boolean {
+  if (!dateStr) return false;
+  return new Date(`${dateStr}T23:59:59.000Z`).getTime() > Date.now();
+}
+
 export default function QuoteManagement({
   initialQuotes,
   bookings,
@@ -158,22 +166,34 @@ export default function QuoteManagement({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null);
+  const [withdrawingQuoteId, setWithdrawingQuoteId] = useState<string | null>(null);
   const [viewingResponseQuoteId, setViewingResponseQuoteId] =
     useState<string | null>(null);
 
-  async function handleSendQuote(quoteId: string) {
-    const confirmed = window.confirm(
-      "Send this quote to the customer's email address?"
-    );
+  // Modal states
+  const [confirmSendQuote, setConfirmSendQuote] = useState<QuoteRecord | null>(null);
+  const [confirmWithdrawQuote, setConfirmWithdrawQuote] = useState<QuoteRecord | null>(null);
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    variant: "success" | "error";
+    title: string;
+    message: string;
+    referenceNumber?: string;
+  }>({
+    isOpen: false,
+    variant: "success",
+    title: "",
+    message: "",
+  });
 
-    if (!confirmed) return;
-
+  async function executeSendQuote(quote: QuoteRecord) {
+    setConfirmSendQuote(null);
     setError("");
     setSuccess("");
-    setSendingQuoteId(quoteId);
+    setSendingQuoteId(quote.id);
 
     try {
-      const response = await fetch(`/api/admin/quotes/${quoteId}/send`, {
+      const response = await fetch(`/api/admin/quotes/${quote.id}/send`, {
         method: "POST",
       });
 
@@ -182,11 +202,24 @@ export default function QuoteManagement({
       };
 
       if (!response.ok) {
-        setError(result.message || "Unable to send this quote.");
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Failed to Send Quote",
+          message: result.message || "Unable to send this quote.",
+        });
         return;
       }
 
-      setSuccess(result.message || "Quote sent successfully.");
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: "Quote Sent Successfully",
+        message:
+          result.message ||
+          `Quote ${quote.quoteNumber} has been sent to the customer for review and acceptance.`,
+        referenceNumber: quote.quoteNumber,
+      });
 
       const refreshResponse = await fetch("/api/admin/quotes", {
         cache: "no-store",
@@ -196,13 +229,76 @@ export default function QuoteManagement({
         const refreshed = (await refreshResponse.json()) as {
           quotes: QuoteRecord[];
         };
-
         setQuotes(refreshed.quotes);
       }
     } catch {
-      setError("A network error occurred while sending the quote.");
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Error",
+        message: "A network error occurred while sending the quote. Please try again.",
+      });
     } finally {
       setSendingQuoteId(null);
+    }
+  }
+
+  async function executeWithdrawQuote(quote: QuoteRecord) {
+    setConfirmWithdrawQuote(null);
+    setError("");
+    setSuccess("");
+    setWithdrawingQuoteId(quote.id);
+
+    try {
+      const response = await fetch(`/api/admin/quotes/${quote.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "WITHDRAWN" }),
+      });
+
+      const result = (await response.json()) as {
+        message?: string;
+      };
+
+      if (!response.ok) {
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Withdrawal Failed",
+          message: result.message || "Unable to withdraw this quote.",
+        });
+        return;
+      }
+
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: "Quote Withdrawn",
+        message:
+          result.message ||
+          `Quote ${quote.quoteNumber} has been withdrawn and will no longer be open for customer acceptance.`,
+        referenceNumber: quote.quoteNumber,
+      });
+
+      const refreshResponse = await fetch("/api/admin/quotes", {
+        cache: "no-store",
+      });
+
+      if (refreshResponse.ok) {
+        const refreshed = (await refreshResponse.json()) as {
+          quotes: QuoteRecord[];
+        };
+        setQuotes(refreshed.quotes);
+      }
+    } catch {
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Problem",
+        message: "Failed to connect to the server. Please try again.",
+      });
+    } finally {
+      setWithdrawingQuoteId(null);
     }
   }
 
@@ -283,11 +379,7 @@ export default function QuoteManagement({
     setTerms(quote.terms ?? "");
 
     const expiryDate = quote.expiresAt?.slice(0, 10) ?? "";
-    const expiryIsFuture =
-      expiryDate !== "" &&
-      new Date(`${expiryDate}T23:59:59.000Z`).getTime() > Date.now();
-
-    setExpiresAt(expiryIsFuture ? expiryDate : "");
+    setExpiresAt(isoDateIsFuture(expiryDate) ? expiryDate : "");
     setError("");
     setSuccess(
       `Preparing revision ${quote.revision + 1} of ${quote.quoteNumber}.`
@@ -452,6 +544,16 @@ export default function QuoteManagement({
       }
 
       setSuccess(result.message || "Draft quote created successfully.");
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: revisionSourceId ? "Quote Revision Created" : "Quote Draft Created",
+        message:
+          result.message ||
+          (revisionSourceId
+            ? "The quotation revision has been prepared and is ready for review."
+            : "The draft quotation has been saved successfully."),
+      });
       setRevisionSourceId(null);
       setSelectedBooking("");
       setTerms("50% upfront and 50% on completion.");
@@ -654,20 +756,33 @@ export default function QuoteManagement({
                           />
                           {(quote.status === "DRAFT" ||
                             quote.status === "SENT") && (
-                            <button
-                              type="button"
-                              onClick={() => handleSendQuote(quote.id)}
-                              disabled={
-                                sendingQuoteId !== null || isSubmitting
-                              }
-                              className="whitespace-nowrap rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-                            >
-                              {sendingQuoteId === quote.id
-                                ? "Sending..."
-                                : quote.status === "DRAFT"
-                                  ? "Send quote"
-                                  : "Resend email"}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmSendQuote(quote)}
+                                disabled={
+                                  sendingQuoteId !== null || isSubmitting
+                                }
+                                className="whitespace-nowrap rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50 transition"
+                              >
+                                {sendingQuoteId === quote.id
+                                  ? "Sending..."
+                                  : quote.status === "DRAFT"
+                                    ? "Send quote"
+                                    : "Resend email"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setConfirmWithdrawQuote(quote)}
+                                disabled={
+                                  withdrawingQuoteId !== null || isSubmitting
+                                }
+                                className="whitespace-nowrap rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50 transition"
+                              >
+                                {withdrawingQuoteId === quote.id ? "Withdrawing..." : "Withdraw"}
+                              </button>
+                            </>
                           )}
 
                           {(quote.status === "DRAFT" ||
@@ -1122,6 +1237,48 @@ export default function QuoteManagement({
           </section>
         </div>
       )}
+
+      {/* Confirmation Modal: Send Quote */}
+      {confirmSendQuote && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setConfirmSendQuote(null)}
+          onConfirm={() => executeSendQuote(confirmSendQuote)}
+          title="Send quotation to customer?"
+          description={`Send quote ${confirmSendQuote.quoteNumber} for booking ${confirmSendQuote.booking.bookingNumber} to ${confirmSendQuote.booking.customer.name} (${confirmSendQuote.booking.customer.email})?`}
+          consequences="The quote status will change to SENT and the customer will be able to review and respond to it."
+          recordName={confirmSendQuote.quoteNumber}
+          confirmText="Send Quotation"
+          isLoading={sendingQuoteId === confirmSendQuote.id}
+        />
+      )}
+
+      {/* Confirmation Modal: Withdraw Quote */}
+      {confirmWithdrawQuote && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setConfirmWithdrawQuote(null)}
+          onConfirm={() => executeWithdrawQuote(confirmWithdrawQuote)}
+          title="Withdraw this quotation?"
+          description={`Withdraw quotation ${confirmWithdrawQuote.quoteNumber} for booking ${confirmWithdrawQuote.booking.bookingNumber}?`}
+          consequences="The customer will no longer be able to accept or decline this quotation. You can create a new revision later if needed."
+          recordName={confirmWithdrawQuote.quoteNumber}
+          confirmText="Withdraw Quotation"
+          isDestructive={true}
+          isLoading={withdrawingQuoteId === confirmWithdrawQuote.id}
+        />
+      )}
+
+      {/* Reusable Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedback.isOpen}
+        onClose={() => setFeedback((prev) => ({ ...prev, isOpen: false }))}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        referenceNumber={feedback.referenceNumber}
+        referenceLabel="Quote Reference"
+      />
     </div>
   );
 }

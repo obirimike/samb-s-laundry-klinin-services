@@ -30,7 +30,7 @@ export default async function HomePage({
 
     const [services, reviewStats] = await Promise.all([
         db.service.findMany({
-            where: { isActive: true },
+            where: { status: "ACTIVE" },
             orderBy: [{ category: "asc" }, { name: "asc" }],
             take: 6,
         }),
@@ -43,7 +43,7 @@ export default async function HomePage({
     ]);
 
     const statsByServiceId = new Map(
-        reviewStats.map((item) => [
+        reviewStats.map((item: any) => [
             item.serviceId,
             {
                 averageRating: item._avg.rating,
@@ -52,12 +52,12 @@ export default async function HomePage({
         ])
     );
 
-    const servicesWithRatings = services.map((service) => {
+    const servicesWithRatings = services.map((service: any) => {
         const stats = statsByServiceId.get(service.id);
         return {
             ...service,
-            averageRating: stats?.averageRating ?? null,
-            reviewCount: stats?.reviewCount ?? 0,
+            averageRating: (stats as any)?.averageRating ?? null,
+            reviewCount: (stats as any)?.reviewCount ?? 0,
         };
     });
 
@@ -201,7 +201,7 @@ export default async function HomePage({
                         </div>
 
                         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {servicesWithRatings.map((service) => (
+                            {servicesWithRatings.map((service: any) => (
                                 <ServiceCard key={service.id} service={service} />
                             ))}
                         </div>

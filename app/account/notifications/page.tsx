@@ -45,7 +45,7 @@ export default async function NotificationsPage() {
 
           <div className="mt-6">
             <NotificationsList
-              initialNotifications={notifications.map((notification) => ({
+              initialNotifications={notifications.map((notification: any) => ({
                 ...notification,
                 createdAt: notification.createdAt.toISOString(),
               }))}

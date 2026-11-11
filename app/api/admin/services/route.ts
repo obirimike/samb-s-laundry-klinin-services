@@ -1,7 +1,7 @@
-
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { assertAdmin } from "@/lib/admin-guard";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { writeAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 
 const serviceSchema = z.object({
@@ -15,51 +15,55 @@ const serviceSchema = z.object({
   description: z.string().trim().min(10).max(2000),
   category: z.enum(["CLEANING", "LAUNDRY", "DOMESTIC_SUPPORT", "PEST_CONTROL"]),
   imageUrl: z.union([z.string().trim().url(), z.literal("")]).optional(),
-  isActive: z.boolean().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
 });
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ message: "Please sign in." }, { status: 401 });
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { message: "Administrator access is required." },
-        { status: 403 }
-      );
-    }
+    const guard = await assertAdmin(request);
+    if (guard.response) return guard.response;
 
     const parsed = serviceSchema.safeParse(await request.json());
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          message: "Please check the service details.",
-          errors: parsed.error.flatten().fieldErrors,
-        },
-        { status: 400 }
+      return apiError(
+        422,
+        "VALIDATION_ERROR",
+        "Please check the service details.",
+        { errors: parsed.error.flatten().fieldErrors }
       );
     }
 
     const input = parsed.data;
-    const service = await db.service.create({
-      data: {
-        name: input.name,
-        slug: input.slug,
-        description: input.description,
-        category: input.category,
-        imageUrl: input.imageUrl || null,
-        isActive: input.isActive ?? true,
-      },
+    const status = input.status ?? "ACTIVE";
+
+    const service = await db.$transaction(async (tx: any ) => {
+      const created = await tx.service.create({
+        data: {
+          name: input.name,
+          slug: input.slug,
+          description: input.description,
+          category: input.category,
+          imageUrl: input.imageUrl || null,
+          status,
+        },
+      });
+
+      await writeAudit(tx, {
+        actorId: guard.session.user.id,
+        action: "SERVICE_CREATED",
+        entityType: "SERVICE",
+        entityId: created.id,
+        changes: { after: { name: created.name, status: created.status } },
+      });
+
+      return created;
     });
 
-    return NextResponse.json(
-      { message: "Service created successfully.", service },
-      { status: 201 }
+    return apiSuccess(
+      "The new laundry service is now available for customers.",
+      { service },
+      201
     );
   } catch (error) {
     if (
@@ -68,17 +72,18 @@ export async function POST(request: Request) {
       "code" in error &&
       error.code === "P2002"
     ) {
-      return NextResponse.json(
-        { message: "That service slug is already in use. Choose another." },
-        { status: 409 }
+      return apiError(
+        409,
+        "SERVICE_SLUG_TAKEN",
+        "That service slug is already in use. Choose another."
       );
     }
 
     console.error("Create service error:", error);
-
-    return NextResponse.json(
-      { message: "Unable to create the service right now." },
-      { status: 500 }
+    return apiError(
+      500,
+      "SERVICE_CREATE_FAILED",
+      "Unable to create the service right now."
     );
   }
 }

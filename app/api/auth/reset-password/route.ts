@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 
     const newPasswordHash = await hash(parsed.data.password, 12);
 
-    const resetSucceeded = await db.$transaction(async (tx) => {
+    const resetSucceeded = await db.$transaction(async (tx: any ) => {
       // Claim the token only if it is still unused and unexpired.
       // This prevents two simultaneous requests from using it.
       const claimedToken = await tx.passwordResetToken.updateMany({

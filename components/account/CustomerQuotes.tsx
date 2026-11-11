@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 type QuoteStatus =
   | "DRAFT"
@@ -122,6 +124,25 @@ export default function CustomerQuotes({ initialQuotes }: Props) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  // Modals
+  const [confirmTarget, setConfirmTarget] = useState<{
+    quote: QuoteRecord;
+    decision: "ACCEPT" | "DECLINE";
+  } | null>(null);
+
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    variant: "success" | "error";
+    title: string;
+    message: string;
+    referenceNumber?: string;
+  }>({
+    isOpen: false,
+    variant: "success",
+    title: "",
+    message: "",
+  });
+
   const pendingCount = useMemo(
     () => quotes.filter((quote) => quote.status === "SENT").length,
     [quotes]
@@ -131,25 +152,21 @@ export default function CustomerQuotes({ initialQuotes }: Props) {
     return quote.status;
   }
 
-  async function respond(
-    quote: QuoteRecord,
-    decision: "ACCEPT" | "DECLINE"
-  ) {
-    const verb = decision === "ACCEPT" ? "accept" : "decline";
-
-    const confirmed = window.confirm(
-      `Are you sure you want to ${verb} quote ${quote.quoteNumber}?`
-    );
-
-    if (!confirmed) return;
-
+  function respond(quote: QuoteRecord, decision: "ACCEPT" | "DECLINE") {
     const note = (notes[quote.id] ?? "").trim();
-
     if (note.length > 1000) {
       setError("Your message must be 1,000 characters or fewer.");
       return;
     }
+    setConfirmTarget({ quote, decision });
+  }
 
+  async function executeResponse() {
+    if (!confirmTarget) return;
+    const { quote, decision } = confirmTarget;
+    setConfirmTarget(null);
+
+    const note = (notes[quote.id] ?? "").trim();
     setError("");
     setMessage("");
     setBusyQuoteId(quote.id);
@@ -175,7 +192,12 @@ export default function CustomerQuotes({ initialQuotes }: Props) {
       };
 
       if (!response.ok || !result.status) {
-        setError(result.message || "Unable to submit your response.");
+        setFeedback({
+          isOpen: true,
+          variant: "error",
+          title: "Submission Failed",
+          message: result.message || "Unable to submit your quote response.",
+        });
         return;
       }
 
@@ -197,12 +219,24 @@ export default function CustomerQuotes({ initialQuotes }: Props) {
         [quote.id]: "",
       }));
 
-      setMessage(
-        result.message ||
-          `Your response to ${quote.quoteNumber} has been recorded.`
-      );
+      const isAccepted = decision === "ACCEPT";
+
+      setFeedback({
+        isOpen: true,
+        variant: "success",
+        title: isAccepted ? "Quote Accepted" : "Quote Declined",
+        message: isAccepted
+          ? "Your quote response has been recorded successfully. SAMB will follow up regarding your booking confirmation."
+          : "Your decision has been recorded. Our team will review your response.",
+        referenceNumber: quote.quoteNumber,
+      });
     } catch {
-      setError("A network error occurred. Please try again.");
+      setFeedback({
+        isOpen: true,
+        variant: "error",
+        title: "Connection Error",
+        message: "A network error occurred. Please try again.",
+      });
     } finally {
       setBusyQuoteId(null);
     }
@@ -482,6 +516,42 @@ export default function CustomerQuotes({ initialQuotes }: Props) {
           })}
         </div>
       )}
+
+      {/* Confirmation Modal: Quote Decision */}
+      {confirmTarget && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setConfirmTarget(null)}
+          onConfirm={executeResponse}
+          title={
+            confirmTarget.decision === "ACCEPT"
+              ? "Accept this quotation?"
+              : "Decline this quotation?"
+          }
+          description={
+            confirmTarget.decision === "ACCEPT"
+              ? `You are accepting quotation ${confirmTarget.quote.quoteNumber} for booking ${confirmTarget.quote.booking.bookingNumber} (${money(confirmTarget.quote.amount, confirmTarget.quote.currency)}).`
+              : `You are declining quotation ${confirmTarget.quote.quoteNumber}. You can include feedback for the SAMB team in the message field.`
+          }
+          recordName={confirmTarget.quote.quoteNumber}
+          confirmText={
+            confirmTarget.decision === "ACCEPT" ? "Accept Quotation" : "Decline Quotation"
+          }
+          isDestructive={confirmTarget.decision === "DECLINE"}
+          isLoading={busyQuoteId === confirmTarget.quote.id}
+        />
+      )}
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedback.isOpen}
+        onClose={() => setFeedback((prev) => ({ ...prev, isOpen: false }))}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        referenceNumber={feedback.referenceNumber}
+        referenceLabel="Quotation"
+      />
     </div>
   );
 }

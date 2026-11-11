@@ -22,9 +22,14 @@ export default async function AdminLayout({
   }
 
   return (
-    <section className="min-h-screen bg-slate-50 lg:flex">
+    <div className="min-h-screen bg-slate-50 lg:flex lg:h-screen lg:overflow-hidden">
       <AdminNavigation />
-      <div className="min-w-0 flex-1">{children}</div>
-    </section>
+      <div
+        id="admin-main-content"
+        className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto lg:overscroll-contain"
+      >
+        {children}
+      </div>
+    </div>
   );
 }

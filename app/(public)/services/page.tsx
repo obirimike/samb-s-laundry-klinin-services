@@ -12,7 +12,7 @@ export const metadata = {
 export default async function ServicesPage() {
   const [services, reviewStats] = await Promise.all([
     db.service.findMany({
-      where: { isActive: true },
+      where: { status: "ACTIVE" },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
 
@@ -31,7 +31,7 @@ export default async function ServicesPage() {
   ]);
 
   const statsByServiceId = new Map(
-    reviewStats.map((item) => [
+    reviewStats.map((item: any) => [
       item.serviceId,
       {
         averageRating: item._avg.rating,
@@ -40,13 +40,13 @@ export default async function ServicesPage() {
     ])
   );
 
-  const servicesWithRatings = services.map((service) => {
+  const servicesWithRatings = services.map((service: any) => {
     const stats = statsByServiceId.get(service.id);
 
     return {
       ...service,
-      averageRating: stats?.averageRating ?? null,
-      reviewCount: stats?.reviewCount ?? 0,
+      averageRating: (stats as any)?.averageRating ?? null,
+      reviewCount: (stats as any)?.reviewCount ?? 0,
     };
   });
 

@@ -547,3 +547,155 @@ export async function sendQuoteResponseEmail({
     return { success: false };
   }
 }
+
+export async function sendApplicationConfirmationEmail({
+  to,
+  fullName,
+  applicationReference,
+  positionTitle,
+}: {
+  to: string;
+  fullName: string;
+  applicationReference: string;
+  positionTitle: string;
+}): Promise<{ success: boolean; id?: string; skipped?: boolean }> {
+  if (!hasUsableEmailAddress(to)) {
+    return { success: false };
+  }
+
+  const emailConfig = getEmailConfig();
+  if (!emailConfig) {
+    return { success: false, skipped: true };
+  }
+
+  const safeName = escapeHtml(fullName || "Applicant");
+  const safeRef = escapeHtml(applicationReference);
+  const safePosition = escapeHtml(positionTitle);
+
+  try {
+    const { data, error } = await emailConfig.resend.emails.send({
+      from: emailConfig.fromAddress,
+      to: [to],
+      subject: `Application Received: ${positionTitle} (${applicationReference})`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#172033;line-height:1.6">
+          <div style="background:#031c43;padding:24px;border-radius:12px 12px 0 0">
+            <h1 style="color:#ffffff;font-size:22px;margin:0">
+              SAMB's Laundry &amp; Klinin Services
+            </h1>
+          </div>
+          <div style="padding:28px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px">
+            <p>Dear ${safeName},</p>
+            <p>Thank you for applying for <strong>${safePosition}</strong> at SAMB's Services.</p>
+            <div style="background:#f1f5f9;padding:16px;border-radius:8px;margin:20px 0">
+              <p style="margin:0;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:bold">Application Reference</p>
+              <p style="margin:4px 0 0 0;font-size:20px;font-family:monospace;font-weight:bold;color:#031c43">${safeRef}</p>
+            </div>
+            <p>Our recruitment team is reviewing your application. You can track your application status at any time using your reference code and email address on our Careers portal.</p>
+            <p style="font-size:13px;color:#64748b;margin-top:30px">
+              Best regards,<br />
+              <strong>SAMB Recruitment Team</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      text: [
+        `Dear ${fullName},`,
+        "",
+        `Thank you for applying for "${positionTitle}" at SAMB's Services.`,
+        "",
+        `Your application reference number is: ${applicationReference}`,
+        "",
+        "Our recruitment team will review your submission and contact you regarding the next steps.",
+        "",
+        "You can track your application status on our website with your reference number.",
+        "",
+        "SAMB Recruitment Team",
+      ].join("\n"),
+    });
+
+    if (error) {
+      console.error("Application confirmation email error:", error.message);
+      return { success: false };
+    }
+    return { success: true, id: data?.id };
+  } catch (error) {
+    console.error("Failed to send application confirmation email:", error);
+    return { success: false };
+  }
+}
+
+export async function sendAdminNewApplicationAlert({
+  applicationReference,
+  fullName,
+  email,
+  phone,
+  positionTitle,
+  applicationId,
+}: {
+  applicationReference: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  positionTitle: string;
+  applicationId: string;
+}): Promise<{ success: boolean; id?: string; skipped?: boolean }> {
+  const emailConfig = getEmailConfig();
+  if (!emailConfig) {
+    return { success: false, skipped: true };
+  }
+
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || emailConfig.fromAddress;
+  if (!hasUsableEmailAddress(adminEmail)) {
+    return { success: false, skipped: true };
+  }
+
+  const safeRef = escapeHtml(applicationReference);
+  const safeName = escapeHtml(fullName);
+  const safePosition = escapeHtml(positionTitle);
+
+  try {
+    const { data, error } = await emailConfig.resend.emails.send({
+      from: emailConfig.fromAddress,
+      to: [adminEmail],
+      subject: `[New Application] ${positionTitle} - ${fullName} (${applicationReference})`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#172033;line-height:1.6">
+          <div style="background:#031c43;padding:24px;border-radius:12px 12px 0 0">
+            <h1 style="color:#ffffff;font-size:20px;margin:0">New Candidate Application</h1>
+          </div>
+          <div style="padding:28px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px">
+            <p>A new application has been submitted:</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+              <tr><td style="padding:6px 0;color:#64748b">Position:</td><td style="padding:6px 0;font-weight:bold">${safePosition}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b">Applicant:</td><td style="padding:6px 0;font-weight:bold">${safeName}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b">Email:</td><td style="padding:6px 0">${escapeHtml(email)}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b">Phone:</td><td style="padding:6px 0">${escapeHtml(phone)}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b">Reference:</td><td style="padding:6px 0;font-family:monospace;font-weight:bold">${safeRef}</td></tr>
+            </table>
+            <p><a href="/admin/recruitment/applications/${applicationId}" style="display:inline-block;background:#031c43;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:bold">View Application in Admin Dashboard</a></p>
+          </div>
+        </div>
+      `,
+      text: [
+        `New Candidate Application: ${positionTitle}`,
+        "",
+        `Applicant: ${fullName}`,
+        `Email: ${email}`,
+        `Phone: ${phone}`,
+        `Reference: ${applicationReference}`,
+        "",
+        `Review at: /admin/recruitment/applications/${applicationId}`,
+      ].join("\n"),
+    });
+
+    if (error) {
+      console.error("Admin recruitment alert email error:", error.message);
+      return { success: false };
+    }
+    return { success: true, id: data?.id };
+  } catch (error) {
+    console.error("Failed to send admin recruitment notification:", error);
+    return { success: false };
+  }
+}

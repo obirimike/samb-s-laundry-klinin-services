@@ -65,7 +65,7 @@ export default async function AdminAssignmentsPage() {
     }),
   ]);
 
-  const initialBookings = bookings.map((booking) => ({
+  const initialBookings = bookings.map((booking: any) => ({
     id: booking.id,
     bookingNumber: booking.bookingNumber,
     status: booking.status,
@@ -75,7 +75,7 @@ export default async function AdminAssignmentsPage() {
     specialInstructions: booking.specialInstructions,
     customer: booking.customer,
     service: booking.service,
-    assignments: booking.assignments.map((assignment) => ({
+    assignments: booking.assignments.map((assignment: any) => ({
       id: assignment.id,
       staffId: assignment.staffId,
       staff: assignment.staff,

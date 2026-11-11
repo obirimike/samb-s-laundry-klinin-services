@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
+import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
 
 export default function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -107,6 +108,7 @@ export default function ChangePasswordForm() {
         <p className="mt-2 text-xs text-slate-500">
           Use at least 12 characters. The maximum is 72 UTF-8 bytes.
         </p>
+        <PasswordStrengthIndicator password={newPassword} />
       </div>
 
       <div>

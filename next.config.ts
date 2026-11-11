@@ -29,6 +29,12 @@ if (process.env.NODE_ENV === "production") {
 const nextConfig: NextConfig = {
   /* config options here */
   // Reload trigger for Prisma client enum update
+
+  // Keep Node.js-only packages (pg, Prisma adapter) out of the browser bundle.
+  serverExternalPackages: ["pg", "@prisma/adapter-pg", "pgpass", "pg-connection-string"],
+
+  allowedDevOrigins: ["172.20.10.2"],
+
   images: {
     remotePatterns: [
       {
@@ -39,6 +45,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     agentFeedback: true,
+   
   },
   turbopack: {
     rules: {

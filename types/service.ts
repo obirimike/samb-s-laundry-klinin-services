@@ -7,5 +7,5 @@ export interface ServiceItem {
   description: string;
   category: ServiceCategory;
   imageUrl?: string | null;
-  isActive?: boolean;
+  status?: "ACTIVE" | "INACTIVE" | "SUSPENDED";
 }

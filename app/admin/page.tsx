@@ -13,6 +13,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import NavBar from "@/components/layout/NavBar";
 import Footer from "@/components/layout/Footer";
+import BackToTop from "@/components/ui/BackToTop";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +130,7 @@ export default async function AdminDashboardPage() {
             <p className="text-sm font-bold uppercase tracking-wider text-blue-700">
               SAMB&apos;s management
             </p>
-            <h1 className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
+            <h1 className="mt-8 text-3xl font-extrabold text-slate-900 sm:text-4xl">
               Admin dashboard
             </h1>
             <p className="mt-3 text-slate-600">
@@ -166,7 +167,7 @@ export default async function AdminDashboardPage() {
             })}
           </section>
 
-          <section className="mt-8 grid gap-4 sm:grid-cols-2">
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Link
               href="/admin/staff"
               className="block rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
@@ -188,6 +189,30 @@ export default async function AdminDashboardPage() {
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Assign, replace, or unassign staff from confirmed bookings and review assignment history.
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/messages"
+              className="block rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+            >
+              <h2 className="text-lg font-bold text-slate-900">
+                Contact Messages
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                View, resolve and archive enquiries submitted through the contact form.
+              </p>
+            </Link>
+
+            <Link
+              href="/admin/audit-logs"
+              className="block rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+            >
+              <h2 className="text-lg font-bold text-slate-900">
+                Audit Logs
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Review a filterable history of all administrative actions performed on the platform.
               </p>
             </Link>
           </section>
@@ -226,7 +251,7 @@ export default async function AdminDashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {recentBookings.map((booking) => (
+                {recentBookings.map((booking: any) => (
                   <Link
                     key={booking.id}
                     href={`/admin/bookings/${booking.id}`}
@@ -262,7 +287,7 @@ export default async function AdminDashboardPage() {
           </section>
         </div>
       </main>
-
+      <BackToTop />
       <Footer />
     </>
   );

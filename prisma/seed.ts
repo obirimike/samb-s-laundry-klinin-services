@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, ServiceCategory } from "@prisma/client";
+// import * as PrismaAll from "@prisma/client";
 
 const rawConnectionString =
   process.env.SEED_DATABASE_URL ??

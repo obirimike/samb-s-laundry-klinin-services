@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { suspendedAccountResponse } from "@/lib/account-access";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendQuoteResponseEmail } from "@/lib/emails";
@@ -39,6 +40,9 @@ export async function POST(
         { status: 403 }
       );
     }
+
+    const suspended = await suspendedAccountResponse(session.user.id);
+    if (suspended) return suspended;
 
     const { id } = await params;
 

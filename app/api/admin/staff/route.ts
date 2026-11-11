@@ -50,6 +50,7 @@ export async function GET() {
         name: true,
         email: true,
         phone: true,
+        accountStatus: true,
         createdAt: true,
         assignmentsReceived: {
           where: { isActive: true },
@@ -59,7 +60,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      staff: staff.map(({ assignmentsReceived, ...member }) => ({
+      staff: staff.map(({assignmentsReceived, ...member }: any) => ({
         ...member,
         createdAt: member.createdAt.toISOString(),
         activeAssignmentCount: assignmentsReceived.length,

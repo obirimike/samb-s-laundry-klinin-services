@@ -102,7 +102,7 @@ export default async function AdminBookingsPage() {
               </div>
 
               <div className="divide-y divide-slate-100">
-                {bookings.map((booking) => (
+                {bookings.map((booking: any) => (
                   <Link
                     key={booking.id}
                     href={`/admin/bookings/${booking.id}`}

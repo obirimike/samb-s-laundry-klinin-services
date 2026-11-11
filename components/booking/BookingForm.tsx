@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Send, Sparkles, WashingMachine, Home, Bug } from "lucide-react";
 import { ServiceCategory } from "@/types/service";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 type ServiceOption = {
   id: string;
@@ -80,6 +81,7 @@ export default function BookingForm({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [bookingNumber, setBookingNumber] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentService = services.find((s) => s.id === serviceId);
@@ -135,6 +137,7 @@ export default function BookingForm({
 
       setSuccess(data.message || "Your request has been submitted.");
       setBookingNumber(data.booking.bookingNumber);
+      setShowSuccessModal(true);
 
       setPreferredDate("");
       setPreferredTime("");
@@ -425,6 +428,23 @@ export default function BookingForm({
         )}
         {isSubmitting ? "Submitting request..." : "Submit booking request"}
       </button>
+      <FeedbackModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        variant="success"
+        title="Booking Request Submitted"
+        message="Your request has been received. Our team will review the details and reach out shortly to discuss the scope, schedule and confirm your appointment."
+        referenceNumber={bookingNumber}
+        referenceLabel="Booking Reference"
+        primaryAction={{
+          label: "View My Bookings",
+          onClick: () => router.push("/account/bookings"),
+        }}
+        secondaryAction={{
+          label: "Book Another Service",
+          onClick: () => setShowSuccessModal(false),
+        }}
+      />
     </form>
   );
 }
