@@ -4,7 +4,7 @@ test.describe("Recruitment & Careers Portal", () => {
   test("careers landing page loads with hero, links and explorer", async ({ page }) => {
     await page.goto("/careers");
     await expect(
-      page.getByRole("heading", { name: "Build your career with SAMB" })
+      page.getByRole("heading", { name: "Join the SAMB's Laundry & Klinin Services Team" })
     ).toBeVisible();
 
     await expect(
