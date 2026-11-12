@@ -447,7 +447,7 @@ export default function ApplicationDetailView({
                       </div>
 
                       <p className="mt-1 text-xs text-slate-500">
-                        Updated by: {item.actor.name || item.actor.email || "System Admin"}
+                       Updated by: {item.actor?.name || item.actor?.email || "System Admin"}
                       </p>
 
                       {item.note && (
