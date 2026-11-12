@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import VacancyForm, {
   type VacancyInitialData,
 } from "@/components/admin/recruitment/VacancyForm";
+import { parseVacancySkills } from "@/lib/recruitment";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function EditVacancyPage({ params }: RouteProps) {
     description: vacancy.description,
     responsibilities: vacancy.responsibilities,
     requirements: vacancy.requirements,
-    skills: vacancy.skills,
+    skills: parseVacancySkills(vacancy.skills),
     openings: vacancy.openings,
     deadline: vacancy.deadline ? vacancy.deadline.toISOString() : null,
     status: vacancy.status,

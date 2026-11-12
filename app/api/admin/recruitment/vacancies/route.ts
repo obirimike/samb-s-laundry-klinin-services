@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { writeAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { randomBytes } from "node:crypto";
+import { serializeVacancySkills } from "@/lib/recruitment";
 
 const createVacancySchema = z.object({
   title: z.string().trim().min(3).max(150),
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
           description: data.description,
           responsibilities: data.responsibilities,
           requirements: data.requirements,
-          skills: data.skills,
+          skills: serializeVacancySkills(data.skills),
           openings: data.openings,
           deadline: data.deadline,
           status: data.status,
