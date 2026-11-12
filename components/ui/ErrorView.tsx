@@ -55,11 +55,11 @@ export default function ErrorView({
     switch (statusCode) {
       case "401":
       case "403":
-        return <Lock className="h-10 w-10 text-amber-600" />;
+        return <Lock className="h-10 w-10 text-600" />;
       case "404":
-        return <FileQuestion className="h-10 w-10 text-blue-600" />;
+        return <FileQuestion className="h-10 w-10 text-red-600" />;
       case "429":
-        return <AlertTriangle className="h-10 w-10 text-orange-600" />;
+        return <AlertTriangle className="h-10 w-10 text--600" />;
       case "500":
       case "503":
         return <ShieldAlert className="h-10 w-10 text-rose-600" />;
@@ -69,8 +69,8 @@ export default function ErrorView({
   };
 
   return (
-    <main className="flex min-h-[80vh] flex-col items-center justify-center bg-slate-50 px-4 py-16 sm:px-6 lg:px-8 text-center">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 shadow-xl sm:p-10">
+    <main className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] px-4 py-16 sm:px-6 lg:px-8 text-center">
+      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-[#bedfed] p-8 shadow-xl sm:p-10">
         {/* Brand Header */}
         <div className="mb-6 flex items-center justify-center gap-3">
           <span className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-blue-900 shadow-sm">
@@ -98,7 +98,7 @@ export default function ErrorView({
         </div>
 
         {statusCode && (
-          <p className="mt-4 text-xs font-mono font-bold tracking-widest text-slate-400 uppercase">
+          <p className="mt-4 text-xs font-mono font-bold tracking-widest text-slate-600 uppercase">
             Error {statusCode}
           </p>
         )}
@@ -182,7 +182,7 @@ export default function ErrorView({
                 href="/contact"
                 className="font-semibold text-blue-700 hover:underline inline-flex items-center gap-1"
               >
-                <LifeBuoy size={12} /> Contact SAMB Support
+                <LifeBuoy size={12} /> Contact SAMB&apos;s Support
               </Link>
             </p>
           </div>

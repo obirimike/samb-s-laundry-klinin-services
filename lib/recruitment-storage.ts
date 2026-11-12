@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const RECRUITMENT_BUCKET = "SamB bucket";
+export const RECRUITMENT_BUCKET = "	samb-recruitment-documents";
 export const MAX_CV_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export const ALLOWED_CV_MIME_TYPES = new Set([
