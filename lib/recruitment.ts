@@ -141,3 +141,40 @@ export function formatApplicationStatus(status: string): {
       };
   }
 }
+  /**
+ * Converts the skills array into JSON text for the database TEXT column.
+ */
+export function serializeVacancySkills(skills: string[]): string | null {
+  const cleaned = skills
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+
+  return cleaned.length > 0 ? JSON.stringify(cleaned) : null;
+}
+
+/**
+ * Converts database skills text back into an array for the UI.
+ * Supports existing comma-separated values as a fallback.
+ */
+export function parseVacancySkills(value: string | null): string[] {
+  if (!value) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === "string")
+    ) {
+      return parsed.map((item) => item.trim()).filter(Boolean);
+    }
+  } catch {
+    // Support older comma-separated values.
+  }
+
+  return value
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+}
+

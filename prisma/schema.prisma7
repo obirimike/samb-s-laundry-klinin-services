@@ -343,7 +343,7 @@ model Vacancy {
   description      String           @db.Text
   responsibilities String           @db.Text
   requirements     String           @db.Text
-  skills           String[]         @default([])
+  skills           String?         @db.Text
   openings         Int              @default(1)
   deadline         DateTime?
   status           VacancyStatus    @default(DRAFT)
