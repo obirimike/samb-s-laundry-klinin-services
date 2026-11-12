@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const input = parsed.data;
 
     // Validate CV file attachment
-    const cvFile = formData.get("cv");
+    const cvFile = formData.get("cvFile");
     if (!cvFile || !(cvFile instanceof File) || cvFile.size === 0) {
       return apiError(
         422,
