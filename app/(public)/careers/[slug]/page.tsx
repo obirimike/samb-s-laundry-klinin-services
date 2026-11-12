@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { parseVacancySkills } from "@/lib/recruitment";
 import {
   formatEmploymentType,
   formatWorkArrangement,
@@ -54,6 +55,7 @@ export default async function VacancyDetailPage({ params }: RouteProps) {
   if (!vacancy || vacancy.status !== "PUBLISHED") {
     notFound();
   }
+ const skills = parseVacancySkills(vacancy.skills);
 
   const isExpired = vacancy.deadline ? new Date(vacancy.deadline) < new Date() : false;
   const deadlineFormatted = vacancy.deadline
@@ -176,11 +178,11 @@ export default async function VacancyDetailPage({ params }: RouteProps) {
             </section>
 
             {/* Skills */}
-            {vacancy.skills && vacancy.skills.length > 0 && (
+            {skills.length > 0 && ( 
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <h2 className="text-lg font-bold text-slate-900">Skills &amp; Competencies</h2>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {vacancy.skills.map((skill: string, idx: number) => (
+                  {skills.map((skill: string, idx: number) => (
                     <span
                       key={idx}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-medium text-slate-700"

@@ -189,7 +189,8 @@ export default function CareersApplicationForm({
           return;
         }
 
-        const reference = data?.data?.applicationReference || data?.applicationReference;
+        const reference =
+  data?.data?.application?.reference || data?.application?.reference;
         if (reference) {
           setSubmittedReference(reference);
           setFeedback({
@@ -197,7 +198,7 @@ export default function CareersApplicationForm({
             variant: "success",
             title: "Application Received!",
             message:
-              "Your application has been received successfully. A confirmation email has been sent with your reference number.",
+              "Your application has been received successfully. Please keep your application reference number safe so you can track its progress.",
             ref: reference,
           });
         }

@@ -3,6 +3,10 @@ import { assertAdmin } from "@/lib/admin-guard";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { writeAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
+import {
+  parseVacancySkills,
+  serializeVacancySkills,
+} from "@/lib/recruitment";
 
 const updateVacancySchema = z.object({
   title: z.string().trim().min(3).max(150).optional(),
@@ -52,7 +56,12 @@ export async function GET(request: Request, context: RouteContext) {
       return apiError(404, "VACANCY_NOT_FOUND", "Vacancy not found.");
     }
 
-    return apiSuccess("Vacancy details retrieved.", { vacancy });
+   return apiSuccess("Vacancy details retrieved.", {
+  vacancy: {
+    ...vacancy,
+    skills: parseVacancySkills(vacancy.skills),
+  },
+});
   } catch (error) {
     console.error("Fetch vacancy detail error:", error);
     return apiError(500, "VACANCY_FETCH_FAILED", "Unable to load vacancy.");
@@ -114,7 +123,9 @@ export async function PATCH(request: Request, context: RouteContext) {
           ...(data.requirements !== undefined && {
             requirements: data.requirements,
           }),
-          ...(data.skills !== undefined && { skills: data.skills }),
+          ...(data.skills !== undefined && {
+  skills: serializeVacancySkills(data.skills),
+}),
           ...(data.openings !== undefined && { openings: data.openings }),
           ...(data.deadline !== undefined && { deadline: data.deadline }),
           ...(data.status !== undefined && { status: data.status }),
@@ -145,7 +156,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       return v;
     });
 
-    return apiSuccess("Vacancy updated successfully.", { vacancy: updated });
+   return apiSuccess("Vacancy updated successfully.", {
+  vacancy: {
+    ...updated,
+    skills: parseVacancySkills(updated.skills),
+  },
+});
   } catch (error) {
     console.error("Update vacancy error:", error);
     return apiError(500, "VACANCY_UPDATE_FAILED", "Unable to update vacancy.");
